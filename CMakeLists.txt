@@ -22,6 +22,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # Qt
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
@@ -42,6 +43,7 @@ add_executable(ui
 # ROS
 target_link_libraries(ui 
   ${rclcpp_LIBRARIES} 
+  yaml-cpp
 )
 # Qt
 target_link_libraries(ui 

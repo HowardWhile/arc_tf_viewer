@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+
+#include <yaml-cpp/yaml.h>
 #include <QDebug>
+
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -29,10 +32,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         {
             // Handle received message
             QString receivedMsg = QString::fromStdString(msg->data);
-            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str() );
-            ui->tbox_sub_info->append(receivedMsg);
+            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str());            
         });
 
+    // -------------------------------------
+    // ROS tf tool
+    // -------------------------------------
+    this->tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->node_->get_clock());
+    this->tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     // -------------------------------------
     this->initSpin();
 }
@@ -62,11 +69,10 @@ void MainWindow::initSpin(void)
     this->spin_timer_.start();
 }
 
-
 void MainWindow::on_btn_pub_clicked()
 {
     std::string text = ui->tbox_pub_msg->text().toStdString();
-    RCLCPP_INFO(this->node_->get_logger(), "Publish message: %s", text.c_str() );
+    RCLCPP_INFO(this->node_->get_logger(), "Publish message: %s", text.c_str());
 
     std_msgs::msg::String msg;
     msg.data = text;
@@ -75,9 +81,38 @@ void MainWindow::on_btn_pub_clicked()
     publisher_->publish(msg);
 }
 
+//void yamlToTreeWidget(const YAML::Node& node, QTreeWidgetItem* parentItem) {
+//    for (auto it = node.begin(); it != node.end(); ++it) {
+//        QTreeWidgetItem* item = new QTreeWidgetItem(parentItem);
+//        item->setText(0, QString::fromStdString(it->first.as<std::string>()));
+
+//        if (it->second.IsScalar()) {
+//            item->setText(1, QString::fromStdString(it->second.as<std::string>()));
+//        } else if (it->second.IsMap()) {
+//            yamlToTreeWidget(it->second, item); // 遞歸處理嵌套的map
+//        } else {
+//            // 其他資料類型的處理方式，例如序列化為字串
+//            std::stringstream ss;
+//            ss << it->second;
+//            item->setText(1, QString::fromStdString(ss.str()));
+//        }
+//    }
+//}
 
 void MainWindow::on_pushButton_clicked()
 {
+    RCLCPP_INFO(this->node_->get_logger(), "CallFramesAsString: %s", tf_buffer_->allFramesAsString().c_str());
+    RCLCPP_INFO(this->node_->get_logger(), "allFramesAsYAML: %s", tf_buffer_->allFramesAsYAML().c_str());
+    std::vector<std::string> names = tf_buffer_->getAllFrameNames();
+    RCLCPP_INFO(node_->get_logger(), "All TF Frames:");
+    for (const auto& name : names) {
+        RCLCPP_INFO(node_->get_logger(), "- %s", name.c_str());
+    }
+
+    YAML::Node yaml_node = YAML::Load(tf_buffer_->allFramesAsYAML().c_str());
+    this->ui->treeWidget->setHeaderLabels({"Key", "Value"});
+
+
+//    tf_buffer_
 
 }
-
