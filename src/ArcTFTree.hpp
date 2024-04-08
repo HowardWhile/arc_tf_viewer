@@ -13,6 +13,16 @@ namespace ARC_TF
         std::string value;
         std::vector<TreeNode*> children;
         TreeNode* parent;
+
+        static bool compareChildren(const TreeNode* a, const TreeNode* b)
+        {
+            return a->value < b->value;
+        }
+
+        void sortChildren()
+        {
+            std::sort(children.begin(), children.end(), compareChildren);
+        }
     };
 
     class Tree {
@@ -67,8 +77,9 @@ namespace ARC_TF
                 nodes[childValue] = child;
             }
 
-            child->parent = parent; // 設置父節點的指標
-            parent->children.push_back(child); // 改為使用指標存取
+            child->parent = parent;
+            parent->children.push_back(child);
+            parent->sortChildren();
         }
 
         std::vector<TreeNode*> getRoots()

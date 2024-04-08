@@ -2,6 +2,7 @@
 #include "./ui_mainwindow.h"
 
 #include <yaml-cpp/yaml.h>
+#include <QProcess>
 #include <QDebug>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
@@ -22,19 +23,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // -------------------------------------
     // ROS publisher
     // -------------------------------------
-    this->publisher_ = this->node_->create_publisher<std_msgs::msg::String>("ros2qt_pub", 10);
+//    this->publisher_ = this->node_->create_publisher<std_msgs::msg::String>("ros2qt_pub", 10);
 
     // -------------------------------------
     // ROS subscriber
     // -------------------------------------
-    this->subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-        "ros2qt_sub", 10,
-        [&](const std_msgs::msg::String::SharedPtr msg)
-        {
-            // Handle received message
-            QString receivedMsg = QString::fromStdString(msg->data);
-            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str());
-        });
+//    this->subscriber_ = node_->create_subscription<std_msgs::msg::String>(
+//        "ros2qt_sub", 10,
+//        [&](const std_msgs::msg::String::SharedPtr msg)
+//        {
+//            // Handle received message
+//            QString receivedMsg = QString::fromStdString(msg->data);
+//            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str());
+//        });
 
     // -------------------------------------
     // ROS tf tool
@@ -105,51 +106,53 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
     }
 }
 
-void MainWindow::on_btn_pub_clicked()
+void MainWindow::on_btn_refresh_clicked()
 {
-    std::string text = ui->tbox_pub_msg->text().toStdString();
-    RCLCPP_INFO(this->node_->get_logger(), "Publish message: %s", text.c_str());
+     YAML::Node yaml_node = YAML::Load(tf_buffer_->allFramesAsYAML().c_str());
 
-    std_msgs::msg::String msg;
-    msg.data = text;
+     ARC_TF::Tree tf_tree;
+     for (const auto &pair : yaml_node)
+     {
+         std::string tf_name = pair.first.as<std::string>();
+         YAML::Node value_node = pair.second;
+         std::string tf_parent = value_node["parent"].as<std::string>();
 
-    // Publish the ROS message
-    publisher_->publish(msg);
+         tf_tree.addChild(tf_parent, tf_name);
+     }
+     ROS_PRINT("TF Struct---");
+     ROS_PRINT("\r\n%s", tf_tree.toString().c_str());
+
+     this->updateTfTreeView(ui->treeWidget, &tf_tree);
+     ui->treeWidget->expandAll();
 }
 
-void MainWindow::on_pushButton_clicked()
+
+void MainWindow::on_btn_expand_all_clicked()
 {
-    //    RCLCPP_INFO(this->node_->get_logger(), "CallFramesAsString: %s", tf_buffer_->allFramesAsString().c_str());
-    //    RCLCPP_INFO(this->node_->get_logger(), "allFramesAsYAML: %s", tf_buffer_->allFramesAsYAML().c_str());
-    //    std::vector<std::string> names = tf_buffer_->getAllFrameNames();
-    //    RCLCPP_INFO(node_->get_logger(), "All TF Frames:");
-    //    for (const auto& name : names) {
-    //        RCLCPP_INFO(node_->get_logger(), "- %s", name.c_str());
-    //    }
-
-    YAML::Node yaml_node = YAML::Load(tf_buffer_->allFramesAsYAML().c_str());
-    // 使用 YAML::Emitter 將 YAML::Node 轉換為 YAML 字串
-    //    YAML::Emitter emitter;
-    //    emitter << yaml_node;
-    // 打印 YAML 字串
-    //    std::cout << "YAML Node Content:\n" << emitter.c_str() << std::endl;
-
-    ROS_PRINT("TF Struct---");
-
-    ARC_TF::Tree tf_tree;
-    std::map<std::string, std::string> tf_parent_map;
-    for (const auto &pair : yaml_node)
-    {
-        std::string tf_name = pair.first.as<std::string>();
-        YAML::Node value_node = pair.second;
-        std::string tf_parent = value_node["parent"].as<std::string>();
-
-        tf_tree.addChild(tf_parent, tf_name);
-    }
-
-    ROS_PRINT("\r\n%s", tf_tree.toString().c_str());
-    this->updateTfTreeView(ui->treeWidget, &tf_tree);
     ui->treeWidget->expandAll();
-
-    //    std::cout << tree.toString() << std::endl;
 }
+
+
+void MainWindow::on_btn_collapse_all_clicked()
+{
+    ui->treeWidget->collapseAll();
+}
+
+void MainWindow::on_btn_graphic_clicked()
+{
+    // 创建 QProcess 对象
+    QProcess* process = new QProcess(this);
+
+    // 设置要执行的命令和参数
+    QString command = "rqt_graph";
+    QStringList arguments;
+
+    // 启动进程并执行命令
+    process->start(command, arguments);
+
+    // 检查进程是否成功启动
+    if (!process->waitForStarted()) {
+        qDebug() << "Failed to start command.";
+    }
+}
+

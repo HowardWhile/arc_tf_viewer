@@ -16,28 +16,24 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
-     <widget class="QGroupBox" name="gbox_publisher">
+     <widget class="QGroupBox" name="gbox_function">
       <property name="title">
-       <string>Publisher</string>
+       <string>function</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
+      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QLineEdit" name="tbox_pub_msg">
-           <property name="text">
-            <string>hello world from ui</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btn_pub">
-           <property name="text">
-            <string>Publish</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
+        <widget class="QPushButton" name="btn_refresh">
+         <property name="text">
+          <string>Refresh</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_graphic">
+         <property name="text">
+          <string>Graph</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -45,24 +41,41 @@
     <item>
      <widget class="QGroupBox" name="gbox_subscriber">
       <property name="title">
-       <string>Subscriber</string>
+       <string>TF Tree</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <widget class="QTreeWidget" name="treeWidget">
          <column>
           <property name="text">
-           <string notr="true">1</string>
+           <string notr="true">TF Names</string>
           </property>
          </column>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="text">
-          <string>PushButton</string>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="topMargin">
+          <number>0</number>
          </property>
-        </widget>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="btn_collapse_all">
+           <property name="text">
+            <string>Collapse All</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_expand_all">
+           <property name="text">
+            <string>Expand All</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
