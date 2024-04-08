@@ -1,4 +1,4 @@
-#include "ArcTFTree.hh"
+#include "ArcTFTree.hpp"
 
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"

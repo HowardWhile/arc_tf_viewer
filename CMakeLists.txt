@@ -35,7 +35,7 @@ add_executable(ui
   src/mainwindow.cpp
   src/mainwindow.h
   src/mainwindow.ui
-  src/ArcTFTree.hh
+  src/ArcTFTree.hpp
 )
 
 # ------------------------------------------
