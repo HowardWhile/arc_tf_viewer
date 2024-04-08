@@ -18,7 +18,7 @@
     <item>
      <widget class="QGroupBox" name="gbox_function">
       <property name="title">
-       <string>function</string>
+       <string/>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
@@ -101,8 +101,11 @@
        </item>
        <item>
         <widget class="QPushButton" name="btn_graphic">
+         <property name="toolTip">
+          <string>tf2_tools view_frames</string>
+         </property>
          <property name="text">
-          <string>Graph</string>
+          <string>View Frames</string>
          </property>
         </widget>
        </item>
@@ -114,7 +117,7 @@
       <property name="title">
        <string>TF Tree</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
         <widget class="QTreeWidget" name="treeWidget">
          <property name="animated">
@@ -126,16 +129,6 @@
           </property>
          </column>
         </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-        </layout>
        </item>
       </layout>
      </widget>
