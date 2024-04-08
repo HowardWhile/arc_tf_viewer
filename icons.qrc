@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/res">
+        <file>icons/collapse.png</file>
+        <file>icons/expand.png</file>
+        <file>icons/reload.png</file>
+    </qresource>
+</RCC>
