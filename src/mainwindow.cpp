@@ -10,6 +10,7 @@
 #include <QStandardPaths>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QProgressDialog>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
 
@@ -29,19 +30,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // -------------------------------------
     // ROS publisher
     // -------------------------------------
-//    this->publisher_ = this->node_->create_publisher<std_msgs::msg::String>("ros2qt_pub", 10);
+    //    this->publisher_ = this->node_->create_publisher<std_msgs::msg::String>("ros2qt_pub", 10);
 
     // -------------------------------------
     // ROS subscriber
     // -------------------------------------
-//    this->subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-//        "ros2qt_sub", 10,
-//        [&](const std_msgs::msg::String::SharedPtr msg)
-//        {
-//            // Handle received message
-//            QString receivedMsg = QString::fromStdString(msg->data);
-//            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str());
-//        });
+    //    this->subscriber_ = node_->create_subscription<std_msgs::msg::String>(
+    //        "ros2qt_sub", 10,
+    //        [&](const std_msgs::msg::String::SharedPtr msg)
+    //        {
+    //            // Handle received message
+    //            QString receivedMsg = QString::fromStdString(msg->data);
+    //            RCLCPP_INFO(this->node_->get_logger(), "Subscribe message: %s", msg->data.c_str());
+    //        });
 
     // -------------------------------------
     // ROS tf tool
@@ -114,30 +115,28 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
 
 void MainWindow::on_btn_refresh_clicked()
 {
-     YAML::Node yaml_node = YAML::Load(tf_buffer_->allFramesAsYAML().c_str());
+    YAML::Node yaml_node = YAML::Load(tf_buffer_->allFramesAsYAML().c_str());
 
-     ARC_TF::Tree tf_tree;
-     for (const auto &pair : yaml_node)
-     {
-         std::string tf_name = pair.first.as<std::string>();
-         YAML::Node value_node = pair.second;
-         std::string tf_parent = value_node["parent"].as<std::string>();
+    ARC_TF::Tree tf_tree;
+    for (const auto &pair : yaml_node)
+    {
+        std::string tf_name = pair.first.as<std::string>();
+        YAML::Node value_node = pair.second;
+        std::string tf_parent = value_node["parent"].as<std::string>();
 
-         tf_tree.addChild(tf_parent, tf_name);
-     }
-     ROS_PRINT("TF Struct---");
-     ROS_PRINT("\r\n%s", tf_tree.toString().c_str());
+        tf_tree.addChild(tf_parent, tf_name);
+    }
+    // ROS_PRINT("TF Struct---");
+    // ROS_PRINT("\r\n%s", tf_tree.toString().c_str());
 
-     this->updateTfTreeView(ui->treeWidget, &tf_tree);
-     ui->treeWidget->expandAll();
+    this->updateTfTreeView(ui->treeWidget, &tf_tree);
+    ui->treeWidget->expandAll();
 }
-
 
 void MainWindow::on_btn_expand_all_clicked()
 {
     ui->treeWidget->expandAll();
 }
-
 
 void MainWindow::on_btn_collapse_all_clicked()
 {
@@ -154,25 +153,57 @@ void MainWindow::on_btn_graphic_clicked()
     QString pathWithoutExtension = fileInfo.path() + "/" + fileInfo.baseName();
     QString pathWithExtension = fileInfo.filePath();
 
+    // 创建进度对话框
+    QProgressDialog progressDialog(this);
+    progressDialog.setLabelText("Running script...");
+    progressDialog.setCancelButtonText("Cancel");
+    progressDialog.setRange(0, 5000); // 大概5秒跑完
+
+    // 设置对话框为模态
+    progressDialog.setModal(true);
+    // 显示对话框，并等待用户操作
+    progressDialog.show();
+
     // run script "ros2 run tf2_tools view_frames -o /tmp/tf_treeby" by QProcess
-    QProcess* process = new QProcess(this);
+    QProcess *process = new QProcess(this);
     QString command = "ros2";
     QStringList arguments;
-    arguments << "run" << "tf2_tools" << "view_frames" << "-o" << pathWithoutExtension;
-    process->start(command, arguments);
+    arguments << "run"
+              << "tf2_tools"
+              << "view_frames"
+              << "-o" << pathWithoutExtension;
 
-    // check run finished
-    if (!process->waitForFinished(6000))
+    process->start(command, arguments);
+    ROS_PRINT("Process Start: %s %s", command.toStdString().c_str(), arguments.join(" ").toStdString().c_str());
+
+    // 等待进程处理完成
+    int k_interval = 100;
+    int process_time = 0;
+    while (!process->waitForFinished(k_interval))
     {
-        ROS_PRINT("Failed to start command.");
-        return;
+        if (progressDialog.wasCanceled())
+        {
+            process->terminate();
+            ROS_PRINT("Process canceled.");
+            return;
+        }
+
+        // 更新進度條
+        process_time+=k_interval;
+        if(process_time >= progressDialog.maximum())
+            process_time = progressDialog.maximum()-1;
+        progressDialog.setValue(process_time);
+        QCoreApplication::processEvents();
     }
+    // 关闭进度对话框
+    progressDialog.close();
 
     // open pdf file
+    ROS_PRINT("Open File: %s", pathWithExtension.toStdString().c_str());
     QUrl fileUrl = QUrl::fromLocalFile(pathWithExtension);
     if (!QDesktopServices::openUrl(fileUrl))
     {
-        ROS_PRINT("Failed to open PDF file.");
+        ROS_PRINT("Failed to open file.");
         return;
     }
 }
