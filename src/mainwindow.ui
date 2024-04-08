@@ -29,6 +29,20 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="btn_collapse_all">
+         <property name="text">
+          <string>Collapse All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_expand_all">
+         <property name="text">
+          <string>Expand All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_graphic">
          <property name="text">
           <string>Graph</string>
@@ -61,20 +75,6 @@
          <property name="bottomMargin">
           <number>0</number>
          </property>
-         <item>
-          <widget class="QPushButton" name="btn_collapse_all">
-           <property name="text">
-            <string>Collapse All</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btn_expand_all">
-           <property name="text">
-            <string>Expand All</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
       </layout>

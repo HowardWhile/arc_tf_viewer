@@ -2,8 +2,14 @@
 #include "./ui_mainwindow.h"
 
 #include <yaml-cpp/yaml.h>
+
 #include <QProcess>
 #include <QDebug>
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QStandardPaths>
+#include <QDesktopServices>
+#include <QUrl>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
 
@@ -140,19 +146,33 @@ void MainWindow::on_btn_collapse_all_clicked()
 
 void MainWindow::on_btn_graphic_clicked()
 {
-    // 创建 QProcess 对象
+    // define tf_tree file name and path
+    QString tempDirPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QString tempFileName = "tf_tree.pdf";
+
+    QFileInfo fileInfo(tempDirPath + "/" + tempFileName);
+    QString pathWithoutExtension = fileInfo.path() + "/" + fileInfo.baseName();
+    QString pathWithExtension = fileInfo.filePath();
+
+    // run script "ros2 run tf2_tools view_frames -o /tmp/tf_treeby" by QProcess
     QProcess* process = new QProcess(this);
-
-    // 设置要执行的命令和参数
-    QString command = "rqt_graph";
+    QString command = "ros2";
     QStringList arguments;
-
-    // 启动进程并执行命令
+    arguments << "run" << "tf2_tools" << "view_frames" << "-o" << pathWithoutExtension;
     process->start(command, arguments);
 
-    // 检查进程是否成功启动
-    if (!process->waitForStarted()) {
-        qDebug() << "Failed to start command.";
+    // check run finished
+    if (!process->waitForFinished(6000))
+    {
+        ROS_PRINT("Failed to start command.");
+        return;
+    }
+
+    // open pdf file
+    QUrl fileUrl = QUrl::fromLocalFile(pathWithExtension);
+    if (!QDesktopServices::openUrl(fileUrl))
+    {
+        ROS_PRINT("Failed to open PDF file.");
+        return;
     }
 }
-
