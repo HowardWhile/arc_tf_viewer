@@ -1,12 +1,15 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "ArcTFTree.hpp"
+
 #include "std_msgs/msg/string.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/exceptions.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
 
+#include <QTreeWidget>
 #include <QMainWindow>
 #include <QTimer>
 
@@ -57,5 +60,6 @@ private:
     void initSpin(void);
     QTimer spin_timer_;
     // -------------------------------------
+    void updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree);
 };
 #endif // MAINWINDOW_H
