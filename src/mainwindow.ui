@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>559</width>
+    <width>508</width>
     <height>415</height>
    </rect>
   </property>
@@ -130,6 +130,12 @@
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QTreeWidget" name="treeWidget">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
+          </property>
           <property name="horizontalScrollMode">
            <enum>QAbstractItemView::ScrollPerItem</enum>
           </property>
@@ -272,7 +278,7 @@
          </layout>
         </item>
         <item>
-         <widget class="QTextBrowser" name="textBrowser">
+         <widget class="QTextBrowser" name="tbox_tf_info">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -292,7 +298,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>559</width>
+     <width>508</width>
      <height>22</height>
     </rect>
    </property>

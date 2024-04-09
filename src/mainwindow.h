@@ -3,6 +3,8 @@
 
 #include "ArcTFTree.hpp"
 
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/exceptions.h"
@@ -41,6 +43,8 @@ private slots:
     void on_btn_reference_clicked();
 
     void on_btn_target_clicked();
+
+    void on_tf_lookup_timer_tick();
 
 private:
     Ui::MainWindow *ui;

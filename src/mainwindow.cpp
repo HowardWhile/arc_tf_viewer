@@ -11,8 +11,12 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QProgressDialog>
+#include <QDateTime>
+#include <QStringLiteral>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
+
+#define RAD2DEG 180.0/M_PI
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -77,15 +81,11 @@ void MainWindow::initSpin(void)
     });
     this->spin_timer_.start();
 
-    this->tf_lookup_timer_.setInterval(1);
     QObject::connect(&this->tf_lookup_timer_,
                      &QTimer::timeout,
-                     [&]()
-    {
-
-
-    });
-    this->tf_lookup_timer_.start();
+                     this,
+                     &MainWindow::on_tf_lookup_timer_tick);
+    this->tf_lookup_timer_.start(30);
 }
 
 void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
@@ -305,5 +305,62 @@ void MainWindow::on_btn_target_clicked()
             ui->cbox_target->setCurrentIndex(index);
         }
     }
+}
+
+QString rostimeToString(const rclcpp::Time& time)
+{
+    QDateTime dateTime = QDateTime::fromMSecsSinceEpoch(time.nanoseconds()/1000000);
+    QString formattedDateTime = dateTime.toString("yyyy-MM-dd hh:mm:ss.zzz");
+    return formattedDateTime;
+}
+
+void MainWindow::on_tf_lookup_timer_tick()
+{
+    // ROS_PRINT("on_tf_lookup_timer_tick");
+    std::string reference_tf_name = ui->cbox_reference->currentText().toStdString();
+    std::string target_tf_name = ui->cbox_target->currentText().toStdString();
+    if(reference_tf_name == "" || target_tf_name == "")
+        return;
+
+    try
+    {
+        geometry_msgs::msg::TransformStamped transform_stamped = this->tf_buffer_->lookupTransform(reference_tf_name, target_tf_name, tf2::TimePointZero);
+
+        QString str_timestamp = QString("Timestamp: %1 \r\n").arg(rostimeToString(this->node_->get_clock()->now()));
+        QString str_position = QString("Position:\r\n (x,y,z): (%1, %2, %3)\r\n")
+                .arg(transform_stamped.transform.translation.x, 0, 'f', 6)
+                .arg(transform_stamped.transform.translation.y, 0, 'f', 6)
+                .arg(transform_stamped.transform.translation.z, 0, 'f', 6);
+
+        tf2::Quaternion tf_quaternion;
+        tf2::fromMsg(transform_stamped.transform.rotation, tf_quaternion);
+
+        QString str_quaternion = QString("(x,y,z,w): (%1, %2, %3, %4)")
+                .arg(QString::number(tf_quaternion.getX(), 'f', 6))
+                .arg(QString::number(tf_quaternion.getY(), 'f', 6))
+                .arg(QString::number(tf_quaternion.getZ(), 'f', 6))
+                .arg(QString::number(tf_quaternion.getW(), 'f', 6));
+
+        double roll, pitch, yaw;
+        tf2::Matrix3x3(tf_quaternion).getRPY(roll, pitch, yaw);
+        QString str_rpy = QString("(roll,pitch,yaw): (%1, %2, %3)")
+                .arg(QString::number(roll*RAD2DEG, 'f', 2))
+                .arg(QString::number(pitch*RAD2DEG, 'f', 2))
+                .arg(QString::number(yaw*RAD2DEG, 'f', 2));
+
+        QString str_rotation = QString("Rotation:\r\n"
+                                       " %1\r\n"
+                                       " %2\r\n")
+                .arg(str_quaternion)
+                .arg(str_rpy);
+
+
+        ui->tbox_tf_info->setText(str_timestamp + str_position + str_rotation);
+    }
+    catch (tf2::TransformException &ex)
+    {
+        RCLCPP_ERROR(this->node_->get_logger(), "TF Exception：%s", ex.what());
+    }
+
 }
 
