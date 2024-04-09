@@ -71,10 +71,10 @@ void MainWindow::initSpin(void)
     QObject::connect(&this->spin_timer_,
                      &QTimer::timeout,
                      [&]()
-                     {
-                         // Spin ROS for handling callbacks
-                         rclcpp::spin_some(node_);
-                     });
+    {
+        // Spin ROS for handling callbacks
+        rclcpp::spin_some(node_);
+    });
     this->spin_timer_.start();
 }
 
@@ -98,9 +98,9 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
         while (!stack.empty())
         {
             auto [parentItem, node] = stack.back();
-            stack.pop_back();
+                    stack.pop_back();
 
-            for (const auto child : node->children)
+                    for (const auto child : node->children)
             {
                 QTreeWidgetItem *childItem = new QTreeWidgetItem(parentItem);
                 childItem->setText(0, QString::fromStdString(child->value));
@@ -110,6 +110,43 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
         }
 
         widget->addTopLevelItem(rootItem);
+    }
+}
+
+void MainWindow::updateComboBox(QComboBox *cbox, std::vector<std::string> values)
+{
+    // 清空现有的项
+    cbox->clear();
+
+    for (const std::string&  v : values)
+    {
+        QString qValue = QString::fromStdString(v);
+        cbox->addItem(qValue);
+    }
+}
+
+void MainWindow::expandTreeNextLevel(QTreeWidgetItem *item, bool next_stop)
+{
+    // Check if the item is a null pointer, return if true
+    if (!item)
+        return;
+
+    // If next_stop is set to true, it means the next level has been expanded and should stop expanding
+    if(next_stop)
+        return;
+
+    // If the current item is not expanded yet, expand it and set next_stop to true to stop expanding the next level
+    if (!item->isExpanded())
+    {
+        item->setExpanded(true);
+        next_stop = true;
+    }
+
+    // Recursively expand child items
+    for (int i = 0; i < item->childCount(); ++i)
+    {
+        QTreeWidgetItem *childItem = item->child(i);
+        expandTreeNextLevel(childItem, next_stop);
     }
 }
 
@@ -131,11 +168,28 @@ void MainWindow::on_btn_refresh_clicked()
 
     this->updateTfTreeView(ui->treeWidget, &tf_tree);
     ui->treeWidget->expandAll();
+
+    auto tf_names = tf_tree.getAllTreeValues();
+
+    this->updateComboBox(ui->cbox_reference, tf_names);
+    this->updateComboBox(ui->cbox_target, tf_names);
+
 }
+
 
 void MainWindow::on_btn_expand_all_clicked()
 {
-    ui->treeWidget->expandAll();
+    // ui->treeWidget->expandAll();
+    // Expand top level items
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i)
+    {
+        QTreeWidgetItem *item = ui->treeWidget->topLevelItem(i);
+        if (item)
+        {
+            // Call the function to expand the tree structure
+            this->expandTreeNextLevel(item);
+        }
+    }
 }
 
 void MainWindow::on_btn_collapse_all_clicked()
@@ -143,9 +197,9 @@ void MainWindow::on_btn_collapse_all_clicked()
     ui->treeWidget->collapseAll();
 }
 
-void MainWindow::on_btn_graphic_clicked()
+void MainWindow::on_btn_view_frames_clicked()
 {
-    // define tf_tree file name and path
+    // Define tf_tree file name and path
     QString tempDirPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
     QString tempFileName = "tf_tree.pdf";
 
@@ -153,18 +207,18 @@ void MainWindow::on_btn_graphic_clicked()
     QString pathWithoutExtension = fileInfo.path() + "/" + fileInfo.baseName();
     QString pathWithExtension = fileInfo.filePath();
 
-    // 创建进度对话框
+    // Create a progress dialog
     QProgressDialog progressDialog(this);
     progressDialog.setLabelText("Running script...");
     progressDialog.setCancelButtonText("Cancel");
-    progressDialog.setRange(0, 5000); // 大概5秒跑完
+    progressDialog.setRange(0, 5000); // Approximately 5 seconds to complete
 
-    // 设置对话框为模态
+    // Set the dialog to be modal
     progressDialog.setModal(true);
-    // 显示对话框，并等待用户操作
+    // Show the dialog and wait for user interaction
     progressDialog.show();
 
-    // run script "ros2 run tf2_tools view_frames -o /tmp/tf_treeby" by QProcess
+    // Run the script "ros2 run tf2_tools view_frames -o /tmp/tf_treeby" using QProcess
     QProcess *process = new QProcess(this);
     QString command = "ros2";
     QStringList arguments;
@@ -176,7 +230,7 @@ void MainWindow::on_btn_graphic_clicked()
     process->start(command, arguments);
     ROS_PRINT("Process Start: %s %s", command.toStdString().c_str(), arguments.join(" ").toStdString().c_str());
 
-    // 等待进程处理完成
+    // Wait for the process to finish
     int k_interval = 100;
     int process_time = 0;
     while (!process->waitForFinished(k_interval))
@@ -188,17 +242,17 @@ void MainWindow::on_btn_graphic_clicked()
             return;
         }
 
-        // 更新進度條
-        process_time+=k_interval;
-        if(process_time >= progressDialog.maximum())
-            process_time = progressDialog.maximum()-1;
+        // Update the progress bar
+        process_time += k_interval;
+        if (process_time >= progressDialog.maximum())
+            process_time = progressDialog.maximum() - 1;
         progressDialog.setValue(process_time);
         QCoreApplication::processEvents();
     }
-    // 关闭进度对话框
+    // Close the progress dialog
     progressDialog.close();
 
-    // open pdf file
+    // Open the PDF file
     ROS_PRINT("Open File: %s", pathWithExtension.toStdString().c_str());
     QUrl fileUrl = QUrl::fromLocalFile(pathWithExtension);
     if (!QDesktopServices::openUrl(fileUrl))
@@ -207,3 +261,39 @@ void MainWindow::on_btn_graphic_clicked()
         return;
     }
 }
+
+
+void MainWindow::on_btn_reference_clicked()
+{
+    // Get the currently selected item in the QTreeWidget
+    QTreeWidgetItem *selectedItem = ui->treeWidget->currentItem();
+    if (selectedItem) {
+        // Get the text of the selected item
+        QString selectedText = selectedItem->text(0);
+
+        // Find the corresponding item in the QComboBox and set it as the current item
+        int index = ui->cbox_reference->findText(selectedText);
+        if (index != -1)
+        {
+            ui->cbox_reference->setCurrentIndex(index);
+        }
+    }
+}
+
+void MainWindow::on_btn_target_clicked()
+{
+    // Get the currently selected item in the QTreeWidget
+    QTreeWidgetItem *selectedItem = ui->treeWidget->currentItem();
+    if (selectedItem) {
+        // Get the text of the selected item
+        QString selectedText = selectedItem->text(0);
+
+        // Find the corresponding item in the QComboBox and set it as the current item
+        int index = ui->cbox_target->findText(selectedText);
+        if (index != -1)
+        {
+            ui->cbox_target->setCurrentIndex(index);
+        }
+    }
+}
+

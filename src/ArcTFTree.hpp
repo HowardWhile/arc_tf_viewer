@@ -93,7 +93,7 @@ namespace ARC_TF
                 }
             }
             return roots;
-        }
+        }        
 
         // 將樹狀結構轉換為字串
         std::string toString()
@@ -107,6 +107,17 @@ namespace ARC_TF
             }
 
             return ss.str();
+        }
+
+        std::vector<std::string> getAllTreeValues()
+        {
+            std::vector<std::string> values;
+            for (const auto& pair : nodes)
+            {
+                values.push_back(pair.first);
+            }
+            std::sort(values.begin(), values.end());
+            return values;
         }
 
         // 程式結束時釋放動態配置的記憶體

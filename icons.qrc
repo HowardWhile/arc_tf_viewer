@@ -3,5 +3,7 @@
         <file>icons/collapse.png</file>
         <file>icons/expand.png</file>
         <file>icons/reload.png</file>
+        <file>icons/coordinates.png</file>
+        <file>icons/location.png</file>
     </qresource>
 </RCC>
