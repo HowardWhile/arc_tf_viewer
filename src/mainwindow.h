@@ -12,6 +12,7 @@
 #include <QTreeWidget>
 #include <QMainWindow>
 #include <QTimer>
+#include <QComboBox>
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -35,7 +36,11 @@ private slots:
 
     void on_btn_collapse_all_clicked();
 
-    void on_btn_graphic_clicked();
+    void on_btn_view_frames_clicked();
+
+    void on_btn_reference_clicked();
+
+    void on_btn_target_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -64,5 +69,7 @@ private:
     QTimer spin_timer_;
     // -------------------------------------
     void updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree);
+    void updateComboBox(QComboBox *cbox, std::vector<std::string> values);
+    void expandTreeNextLevel(QTreeWidgetItem *item, bool next_stop = false);
 };
 #endif // MAINWINDOW_H
