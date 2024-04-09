@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/res">
+        <file>collapse.png</file>
+        <file>coordinates.png</file>
+        <file>expand.png</file>
+        <file>location.png</file>
+        <file>reload.png</file>
+    </qresource>
+</RCC>

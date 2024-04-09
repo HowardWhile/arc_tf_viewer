@@ -76,6 +76,16 @@ void MainWindow::initSpin(void)
         rclcpp::spin_some(node_);
     });
     this->spin_timer_.start();
+
+    this->tf_lookup_timer_.setInterval(1);
+    QObject::connect(&this->tf_lookup_timer_,
+                     &QTimer::timeout,
+                     [&]()
+    {
+
+
+    });
+    this->tf_lookup_timer_.start();
 }
 
 void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)

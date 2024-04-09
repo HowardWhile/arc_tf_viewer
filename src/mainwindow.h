@@ -67,6 +67,7 @@ private:
     // -------------------------------------
     void initSpin(void);
     QTimer spin_timer_;
+    QTimer tf_lookup_timer_;
     // -------------------------------------
     void updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree);
     void updateComboBox(QComboBox *cbox, std::vector<std::string> values);

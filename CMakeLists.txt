@@ -36,7 +36,7 @@ add_executable(ui
   src/mainwindow.h
   src/mainwindow.ui
   src/ArcTFTree.hpp
-  icons.qrc
+  icons/icons.qrc
 )
 
 # ------------------------------------------
