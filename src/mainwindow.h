@@ -3,6 +3,8 @@
 
 #include "ArcTFTree.hpp"
 
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/exceptions.h"
@@ -42,8 +44,13 @@ private slots:
 
     void on_btn_target_clicked();
 
+    void on_treeWidget_itemSelectionChanged();
+
+    void on_btn_copy_clicked();
+
 private:
     Ui::MainWindow *ui;
+    void on_tf_lookup_timer_tick();
 
 private:
     // -------------------------------------
@@ -67,6 +74,7 @@ private:
     // -------------------------------------
     void initSpin(void);
     QTimer spin_timer_;
+    QTimer tf_lookup_timer_;
     // -------------------------------------
     void updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree);
     void updateComboBox(QComboBox *cbox, std::vector<std::string> values);

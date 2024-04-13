@@ -11,8 +11,13 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QProgressDialog>
+#include <QDateTime>
+#include <QStringLiteral>
+#include <QClipboard>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
+
+#define RAD2DEG 180.0 / M_PI
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -71,11 +76,17 @@ void MainWindow::initSpin(void)
     QObject::connect(&this->spin_timer_,
                      &QTimer::timeout,
                      [&]()
-    {
-        // Spin ROS for handling callbacks
-        rclcpp::spin_some(node_);
-    });
+                     {
+                         // Spin ROS for handling callbacks
+                         rclcpp::spin_some(node_);
+                     });
     this->spin_timer_.start();
+
+    QObject::connect(&this->tf_lookup_timer_,
+                     &QTimer::timeout,
+                     this,
+                     &MainWindow::on_tf_lookup_timer_tick);
+    this->tf_lookup_timer_.start(30);
 }
 
 void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
@@ -98,9 +109,9 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
         while (!stack.empty())
         {
             auto [parentItem, node] = stack.back();
-                    stack.pop_back();
+            stack.pop_back();
 
-                    for (const auto child : node->children)
+            for (const auto child : node->children)
             {
                 QTreeWidgetItem *childItem = new QTreeWidgetItem(parentItem);
                 childItem->setText(0, QString::fromStdString(child->value));
@@ -118,7 +129,7 @@ void MainWindow::updateComboBox(QComboBox *cbox, std::vector<std::string> values
     // 清空现有的项
     cbox->clear();
 
-    for (const std::string&  v : values)
+    for (const std::string &v : values)
     {
         QString qValue = QString::fromStdString(v);
         cbox->addItem(qValue);
@@ -132,7 +143,7 @@ void MainWindow::expandTreeNextLevel(QTreeWidgetItem *item, bool next_stop)
         return;
 
     // If next_stop is set to true, it means the next level has been expanded and should stop expanding
-    if(next_stop)
+    if (next_stop)
         return;
 
     // If the current item is not expanded yet, expand it and set next_stop to true to stop expanding the next level
@@ -173,9 +184,7 @@ void MainWindow::on_btn_refresh_clicked()
 
     this->updateComboBox(ui->cbox_reference, tf_names);
     this->updateComboBox(ui->cbox_target, tf_names);
-
 }
-
 
 void MainWindow::on_btn_expand_all_clicked()
 {
@@ -262,12 +271,12 @@ void MainWindow::on_btn_view_frames_clicked()
     }
 }
 
-
 void MainWindow::on_btn_reference_clicked()
 {
     // Get the currently selected item in the QTreeWidget
     QTreeWidgetItem *selectedItem = ui->treeWidget->currentItem();
-    if (selectedItem) {
+    if (selectedItem)
+    {
         // Get the text of the selected item
         QString selectedText = selectedItem->text(0);
 
@@ -284,7 +293,8 @@ void MainWindow::on_btn_target_clicked()
 {
     // Get the currently selected item in the QTreeWidget
     QTreeWidgetItem *selectedItem = ui->treeWidget->currentItem();
-    if (selectedItem) {
+    if (selectedItem)
+    {
         // Get the text of the selected item
         QString selectedText = selectedItem->text(0);
 
@@ -295,5 +305,107 @@ void MainWindow::on_btn_target_clicked()
             ui->cbox_target->setCurrentIndex(index);
         }
     }
+}
+
+QString rostimeToString(const rclcpp::Time &time)
+{
+    QDateTime dateTime = QDateTime::fromMSecsSinceEpoch(time.nanoseconds() / 1000000);
+    QString formattedDateTime = dateTime.toString("yyyy-MM-dd hh:mm:ss.zzz");
+    return formattedDateTime;
+}
+
+void MainWindow::on_tf_lookup_timer_tick()
+{
+    // ROS_PRINT("on_tf_lookup_timer_tick");
+    std::string reference_tf_name = ui->cbox_reference->currentText().toStdString();
+    std::string target_tf_name = ui->cbox_target->currentText().toStdString();
+    if (reference_tf_name == "" || target_tf_name == "")
+        return;
+
+    QString str_timestamp = QString("Timestamp: %1\r\n").arg(rostimeToString(this->node_->get_clock()->now()));
+    QString str_tf_pair = QString("Frame\r\n"
+                                  "Work:\t%1\r\n"
+                                  "Target:\t%2\r\n\r\n")
+                              .arg(QString::fromStdString(reference_tf_name))
+                              .arg(QString::fromStdString(target_tf_name));
+    try
+    {
+        geometry_msgs::msg::TransformStamped transform_stamped = this->tf_buffer_->lookupTransform(reference_tf_name, target_tf_name, tf2::TimePointZero);
+
+        QString str_position = QString("Position:\r\n (x,y,z): (%1, %2, %3)\r\n\r\n")
+                                   .arg(transform_stamped.transform.translation.x, 0, 'f', 6)
+                                   .arg(transform_stamped.transform.translation.y, 0, 'f', 6)
+                                   .arg(transform_stamped.transform.translation.z, 0, 'f', 6);
+
+        tf2::Quaternion tf_quaternion;
+        tf2::fromMsg(transform_stamped.transform.rotation, tf_quaternion);
+
+        QString str_quaternion = QString(" (x,y,z,w)\r\n"
+                                         " (%1, %2, %3, %4)")
+                                     .arg(QString::number(tf_quaternion.getX(), 'f', 3))
+                                     .arg(QString::number(tf_quaternion.getY(), 'f', 3))
+                                     .arg(QString::number(tf_quaternion.getZ(), 'f', 3))
+                                     .arg(QString::number(tf_quaternion.getW(), 'f', 3));
+
+        double roll, pitch, yaw;
+        tf2::Matrix3x3(tf_quaternion).getRPY(roll, pitch, yaw);
+        QString str_rpy = QString(" (roll,pitch,yaw)(deg)\r\n"
+                                  " (%1, %2, %3)")
+                              .arg(QString::number(roll * RAD2DEG, 'f', 3))
+                              .arg(QString::number(pitch * RAD2DEG, 'f', 3))
+                              .arg(QString::number(yaw * RAD2DEG, 'f', 3));
+
+        QString str_rotation = QString("Rotation:\r\n"
+                                       "%1\r\n"
+                                       "%2\r\n\r\n")
+                                   .arg(str_quaternion)
+                                   .arg(str_rpy);
+
+        ui->tbox_tf_info->setText(str_timestamp + str_tf_pair + str_position + str_rotation);
+    }
+    catch (tf2::TransformException &ex)
+    {
+        // RCLCPP_ERROR(this->node_->get_logger(), "TF Exception：%s", ex.what());
+        QColor redColor(Qt::red);
+        QString str_exception_msg = QString("TF Exception: \r\n"
+                                            " %1\r\n")
+                                        .arg(QString(ex.what()));
+
+        ui->tbox_tf_info->setText(str_timestamp + str_exception_msg);
+    }
+}
+
+void MainWindow::on_treeWidget_itemSelectionChanged()
+{
+    auto selectedItems = ui->treeWidget->selectedItems();
+    if (selectedItems.count() == 2)
+    {
+        int idx_ref = ui->cbox_reference->findText(selectedItems.at(0)->text(0));
+        if (idx_ref != -1)
+        {
+            ui->cbox_reference->setCurrentIndex(idx_ref);
+        }
+
+        int idx_taget = ui->cbox_reference->findText(selectedItems.at(1)->text(0));
+        if (idx_taget != -1)
+        {
+            ui->cbox_target->setCurrentIndex(idx_taget);
+        }
+    }
+
+    if (selectedItems.count() > 2)
+    {
+        ui->treeWidget->clearSelection();
+    }
+}
+
+
+void MainWindow::on_btn_copy_clicked()
+{
+    // 獲取 QTextBrowser 的文本內容
+    QString textToCopy = ui->tbox_tf_info->toPlainText();
+
+    // 將文本複製到剪貼板
+    QApplication::clipboard()->setText(textToCopy);
 }
 

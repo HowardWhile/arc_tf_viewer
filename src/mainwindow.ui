@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>548</width>
-    <height>372</height>
+    <width>508</width>
+    <height>415</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -42,8 +42,8 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset resource="../icons.qrc">
-           <normaloff>:/res/icons/reload.png</normaloff>:/res/icons/reload.png</iconset>
+          <iconset resource="../icons/icons.qrc">
+           <normaloff>:/res/reload.png</normaloff>:/res/reload.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -68,8 +68,8 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset resource="../icons.qrc">
-           <normaloff>:/res/icons/collapse.png</normaloff>:/res/icons/collapse.png</iconset>
+          <iconset resource="../icons/icons.qrc">
+           <normaloff>:/res/collapse.png</normaloff>:/res/collapse.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -94,8 +94,8 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset resource="../icons.qrc">
-           <normaloff>:/res/icons/expand.png</normaloff>:/res/icons/expand.png</iconset>
+          <iconset resource="../icons/icons.qrc">
+           <normaloff>:/res/expand.png</normaloff>:/res/expand.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -130,8 +130,20 @@
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QTreeWidget" name="treeWidget">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
           <property name="horizontalScrollMode">
            <enum>QAbstractItemView::ScrollPerItem</enum>
+          </property>
+          <property name="indentation">
+           <number>8</number>
           </property>
           <property name="animated">
            <bool>true</bool>
@@ -182,8 +194,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="../icons.qrc">
-              <normaloff>:/res/icons/coordinates.png</normaloff>:/res/icons/coordinates.png</iconset>
+             <iconset resource="../icons/icons.qrc">
+              <normaloff>:/res/coordinates.png</normaloff>:/res/coordinates.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -236,8 +248,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="../icons.qrc">
-              <normaloff>:/res/icons/location.png</normaloff>:/res/icons/location.png</iconset>
+             <iconset resource="../icons/icons.qrc">
+              <normaloff>:/res/location.png</normaloff>:/res/location.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -269,12 +281,19 @@
          </layout>
         </item>
         <item>
-         <widget class="QTextBrowser" name="textBrowser">
+         <widget class="QTextBrowser" name="tbox_tf_info">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_copy">
+          <property name="text">
+           <string>Copy</string>
           </property>
          </widget>
         </item>
@@ -289,7 +308,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>548</width>
+     <width>508</width>
      <height>22</height>
     </rect>
    </property>
@@ -297,7 +316,7 @@
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources>
-  <include location="../icons.qrc"/>
+  <include location="../icons/icons.qrc"/>
  </resources>
  <connections/>
 </ui>
