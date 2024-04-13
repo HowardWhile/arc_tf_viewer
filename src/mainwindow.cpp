@@ -91,13 +91,10 @@ void MainWindow::initSpin(void)
 
 void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
 {
-    // 清除原有的項目
     widget->clear();
 
-    // 獲取所有根節點
     auto roots = tf_tree->getRoots();
 
-    // 使用迭代方式處理每個節點及其子節點
     for (const auto root : roots)
     {
         QTreeWidgetItem *rootItem = new QTreeWidgetItem(widget);
@@ -126,9 +123,7 @@ void MainWindow::updateTfTreeView(QTreeWidget *widget, ARC_TF::Tree *tf_tree)
 
 void MainWindow::updateComboBox(QComboBox *cbox, std::vector<std::string> values)
 {
-    // 清空现有的项
     cbox->clear();
-
     for (const std::string &v : values)
     {
         QString qValue = QString::fromStdString(v);
@@ -386,7 +381,7 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
             ui->cbox_reference->setCurrentIndex(idx_ref);
         }
 
-        int idx_taget = ui->cbox_reference->findText(selectedItems.at(1)->text(0));
+        int idx_taget = ui->cbox_target->findText(selectedItems.at(1)->text(0));
         if (idx_taget != -1)
         {
             ui->cbox_target->setCurrentIndex(idx_taget);
@@ -399,13 +394,8 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
     }
 }
 
-
 void MainWindow::on_btn_copy_clicked()
 {
-    // 獲取 QTextBrowser 的文本內容
     QString textToCopy = ui->tbox_tf_info->toPlainText();
-
-    // 將文本複製到剪貼板
     QApplication::clipboard()->setText(textToCopy);
 }
-
