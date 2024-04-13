@@ -13,6 +13,7 @@
 #include <QProgressDialog>
 #include <QDateTime>
 #include <QStringLiteral>
+#include <QClipboard>
 
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
 
@@ -396,5 +397,15 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
     {
         ui->treeWidget->clearSelection();
     }
+}
+
+
+void MainWindow::on_btn_copy_clicked()
+{
+    // 獲取 QTextBrowser 的文本內容
+    QString textToCopy = ui->tbox_tf_info->toPlainText();
+
+    // 將文本複製到剪貼板
+    QApplication::clipboard()->setText(textToCopy);
 }
 

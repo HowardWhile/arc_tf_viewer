@@ -136,6 +136,9 @@
             <height>0</height>
            </size>
           </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
           <property name="horizontalScrollMode">
            <enum>QAbstractItemView::ScrollPerItem</enum>
           </property>
@@ -284,6 +287,13 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_copy">
+          <property name="text">
+           <string>Copy</string>
           </property>
          </widget>
         </item>
