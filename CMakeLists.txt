@@ -19,9 +19,12 @@ endif()
 # ROS
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # Qt
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
@@ -34,6 +37,8 @@ add_executable(ui
   src/mainwindow.cpp
   src/mainwindow.h
   src/mainwindow.ui
+  src/ArcTFTree.hpp
+  icons/icons.qrc
 )
 
 # ------------------------------------------
@@ -42,6 +47,7 @@ add_executable(ui
 # ROS
 target_link_libraries(ui 
   ${rclcpp_LIBRARIES} 
+  yaml-cpp
 )
 # Qt
 target_link_libraries(ui 
@@ -56,8 +62,10 @@ target_link_libraries(ui
 ament_target_dependencies(ui 
   rclcpp
   std_msgs
+  geometry_msgs
   tf2
   tf2_ros
+  tf2_geometry_msgs
 )
 
 # ------------------------------------------

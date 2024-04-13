@@ -1,19 +1,69 @@
-# Project Name
-
-Short description for the project.
+# ARC TF Viewer
 
 ## About
 
-Briefly describe what your project does and its purpose.
+A tool for visualizing TF frames coordinate systems through a UI
+
+![image-20240413095348358](./pic/README/image-20240413095348358.png)
 
 ## Usage
 
-Explain how to use your project, including examples if applicable.
+Run some example programs that can generate TF, for example:
 
-## Contributing
+```shell
+ros2 launch turtle_tf2_py turtle_tf2_demo.launch.py
+```
 
-Describe how others can contribute to your project, such as reporting issues or submitting pull requests.
+```shell
+ros2 launch ur_description view_ur.launch.py ur_type:=ur10
+```
 
-## License
+Then run the UI:
 
-Include information about the license for your project.
+```shell
+ros2 run arc_tf_viewer ui
+```
+
+
+
+## Install
+
+Because it's written in Qt, compiling will require Qt.
+
+```shell
+sudo apt install qtcreator
+```
+
+**Download:**
+
+```
+cd ~/ros2_ws/src
+git clone https://github.com/HowardWhile/arc_tf_viewer.git
+```
+
+Installing the necessary ROS packages, most of which are related to `tf2_ros`, so they are typically included with a standard ROS2 installation.
+
+```shell
+rosdep install --from-paths src --ignore-src
+```
+
+**Compile:**
+
+```shell
+cd ~/ros2_ws
+colcon build
+```
+
+**Execute:**
+
+```shell
+source install/setup.bash
+ros2 run arc_tf_viewer ui
+```
+
+
+
+## Next
+
+I want to add a scope to display TF information similar to [ScottPlot](https://scottplot.net/)....
+
