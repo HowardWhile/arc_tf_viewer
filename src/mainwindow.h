@@ -44,6 +44,8 @@ private slots:
 
     void on_btn_target_clicked();
 
+    void on_treeWidget_itemSelectionChanged();
+
 private:
     Ui::MainWindow *ui;
     void on_tf_lookup_timer_tick();

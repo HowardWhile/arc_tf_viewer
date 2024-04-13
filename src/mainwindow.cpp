@@ -373,3 +373,28 @@ void MainWindow::on_tf_lookup_timer_tick()
         ui->tbox_tf_info->setText(str_timestamp + str_exception_msg);
     }
 }
+
+void MainWindow::on_treeWidget_itemSelectionChanged()
+{
+    auto selectedItems = ui->treeWidget->selectedItems();
+    if (selectedItems.count() == 2)
+    {
+        int idx_ref = ui->cbox_reference->findText(selectedItems.at(0)->text(0));
+        if (idx_ref != -1)
+        {
+            ui->cbox_reference->setCurrentIndex(idx_ref);
+        }
+
+        int idx_taget = ui->cbox_reference->findText(selectedItems.at(1)->text(0));
+        if (idx_taget != -1)
+        {
+            ui->cbox_target->setCurrentIndex(idx_taget);
+        }
+    }
+
+    if (selectedItems.count() > 2)
+    {
+        ui->treeWidget->clearSelection();
+    }
+}
+
