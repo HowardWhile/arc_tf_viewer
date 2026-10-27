@@ -67,3 +67,25 @@ ros2 run arc_tf_viewer ui
 
 I want to add a scope to display TF information similar to [ScottPlot](https://scottplot.net/)....
 
+
+## Static TF editor
+
+Select **Static TF** to open the editor while keeping the main window available.
+Choose an existing parent frame and enter a new child frame, or select the root
+of a disconnected TF branch. Refresh frames if the desired frame has not yet
+appeared. Parent and child are locked while publishing is enabled.
+
+Adjust XYZ and roll/pitch/yaw with the numeric fields or the repeatable +/−
+buttons. The step buttons use the currently displayed units. Unit switches
+change the display only; the URDF preview always uses meters and radians.
+Copy the fixed joint preview into a URDF or xacro and include the child link
+only when it has not already been declared.
+
+The 3D preview shows X in red, Y in green, and Z in blue. Drag to rotate or use
+the mouse wheel to zoom; these actions pause automatic camera motion. Use
+**Auto orbit** to resume orbiting or **Reset view** to restore automatic framing.
+
+Enable publishes a static transform and updates it whenever the pose changes.
+Disabling stops publishing, but a static transform already received by another
+node may remain in its TF cache. The application saves editor settings in the
+user's configuration directory; publishing is always disabled on startup.

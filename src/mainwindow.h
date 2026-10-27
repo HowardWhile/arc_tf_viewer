@@ -23,6 +23,8 @@ namespace Ui
 }
 QT_END_NAMESPACE
 
+class StaticTfPanel;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -50,6 +52,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+    StaticTfPanel *static_tf_panel_ = nullptr;
     void on_tf_lookup_timer_tick();
 
 private:

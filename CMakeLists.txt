@@ -35,6 +35,10 @@ find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 add_executable(ui 
   src/main.cpp
   src/mainwindow.cpp
+  src/static_tf_panel.cpp
+  src/static_tf_panel.h
+  src/tf_preview.cpp
+  src/tf_preview.h
   src/mainwindow.h
   src/mainwindow.ui
   src/ArcTFTree.hpp
@@ -80,5 +84,20 @@ set_target_properties(ui PROPERTIES AUTORCC ON)
 install(TARGETS ui
   DESTINATION lib/${PROJECT_NAME}
 )
+
+
+if(BUILD_TESTING)
+  enable_testing()
+  find_package(Qt5 REQUIRED COMPONENTS Test)
+  find_package(tf2_msgs REQUIRED)
+  find_package(urdf REQUIRED)
+  add_executable(static_tf_panel_test tests/static_tf_panel_test.cpp src/static_tf_panel.cpp src/static_tf_panel.h src/tf_preview.cpp src/tf_preview.h)
+  target_include_directories(static_tf_panel_test PRIVATE src)
+  target_link_libraries(static_tf_panel_test Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Test yaml-cpp)
+  ament_target_dependencies(static_tf_panel_test rclcpp geometry_msgs tf2 tf2_ros tf2_geometry_msgs tf2_msgs urdf)
+  set_target_properties(static_tf_panel_test PROPERTIES AUTOMOC ON)
+  add_test(NAME static_tf_panel_test COMMAND static_tf_panel_test)
+  set_tests_properties(static_tf_panel_test PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ROS_DOMAIN_ID=137;XDG_CONFIG_HOME=/tmp/arc_tf_viewer_test_config")
+endif()
 
 ament_package()

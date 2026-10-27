@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "static_tf_panel.h"
+#include <QPushButton>
 #include "./ui_mainwindow.h"
 
 #include <yaml-cpp/yaml.h>
@@ -56,12 +58,25 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     this->tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     // -------------------------------------
     this->initSpin();
+    auto *static_tf_button = new QPushButton("Static TF", this);
+    static_tf_button->setObjectName("staticTfButton");
+    ui->horizontalLayout->addWidget(static_tf_button);
+    connect(static_tf_button, &QPushButton::clicked, this, [this] {
+        if (!static_tf_panel_) static_tf_panel_ = new StaticTfPanel(node_, *tf_buffer_, this);
+        static_tf_panel_->refreshFrames();
+        static_tf_panel_->show();
+        static_tf_panel_->raise();
+        static_tf_panel_->activateWindow();
+    });
 }
 
 MainWindow::~MainWindow()
 {
     // Stop the spin timer
     this->spin_timer_.stop();
+
+    delete static_tf_panel_;
+    static_tf_panel_ = nullptr;
 
     // Shutdown ROS
     rclcpp::shutdown();
