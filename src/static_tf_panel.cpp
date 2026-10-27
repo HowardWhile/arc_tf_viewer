@@ -15,12 +15,17 @@
 #include <QAbstractButton>
 #include <QContextMenuEvent>
 #include <QMenu>
+#include <QMimeData>
+#include <QRegularExpression>
 #include <QKeyEvent>
 #include <QWheelEvent>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
+#include <QStyle>
+#include <QStyleOptionButton>
+#include <QStylePainter>
 #include <QStandardPaths>
 #include <QVBoxLayout>
 #include <QSignalBlocker>
@@ -32,6 +37,56 @@
 #include <set>
 
 namespace {
+QString compactUrdfOrigin(QString text)
+{
+    static const QRegularExpression origin(QStringLiteral("<origin\\b[^>]*>"));
+    auto matches = origin.globalMatch(text);
+    QVector<QRegularExpressionMatch> found;
+    while (matches.hasNext()) found.push_back(matches.next());
+    for (auto it = found.crbegin(); it != found.crend(); ++it) {
+        text.replace(it->capturedStart(), it->capturedLength(), it->captured().simplified());
+    }
+    return text;
+}
+
+class UrdfPreview : public QPlainTextEdit
+{
+protected:
+    QMimeData *createMimeDataFromSelection() const override
+    {
+        auto *data = QPlainTextEdit::createMimeDataFromSelection();
+        data->setText(compactUrdfOrigin(data->text()));
+        data->removeFormat("text/html");
+        return data;
+    }
+};
+
+class LinkToggle : public QCheckBox
+{
+public:
+    using QCheckBox::QCheckBox;
+    QSize sizeHint() const override
+    {
+        QStyleOptionButton option;
+        option.initFrom(this);
+        option.text = text();
+        return style()->sizeFromContents(QStyle::CT_PushButton, &option,
+                                         fontMetrics().size(Qt::TextShowMnemonic, text()), this)
+            .expandedTo(QSize(0, 30));
+    }
+protected:
+    bool hitButton(const QPoint &position) const override { return rect().contains(position); }
+    void paintEvent(QPaintEvent *) override
+    {
+        QStyleOptionButton option;
+        option.initFrom(this);
+        option.text = text();
+        option.state |= isChecked() ? QStyle::State_On : QStyle::State_Raised;
+        if (isDown()) option.state |= QStyle::State_Sunken;
+        QStylePainter(this).drawControl(QStyle::CE_PushButton, option);
+    }
+};
+
 class FrameComboBox : public QComboBox
 {
 public:
@@ -117,7 +172,8 @@ StaticTfPanel::StaticTfPanel(rclcpp::Node::SharedPtr node, tf2_ros::Buffer &buff
     auto *top = new QHBoxLayout;
     auto *editor = new QVBoxLayout;
     auto *frames = new QGroupBox("Frames");
-    auto *form = new QFormLayout(frames);
+    auto *framesLayout = new QHBoxLayout(frames);
+    auto *form = new QFormLayout;
     parentFrame_ = new FrameComboBox; parentFrame_->setObjectName("parentFrame"); parentFrame_->setEditable(true);
     childFrame_ = new FrameComboBox; childFrame_->setObjectName("childFrame"); childFrame_->setEditable(true);
     for (auto *combo : {parentFrame_, childFrame_}) {
@@ -126,10 +182,18 @@ StaticTfPanel::StaticTfPanel(rclcpp::Node::SharedPtr node, tf2_ros::Buffer &buff
         combo->completer()->setCaseSensitivity(Qt::CaseInsensitive);
     }
     form->addRow("Parent frame", parentFrame_); form->addRow("Child frame", childFrame_);
-    auto *refresh = new QPushButton("Refresh frames"); refresh->setObjectName("refreshFrames");
-    enable_ = new QCheckBox("Enable static TF"); enable_->setObjectName("enableTf");
-    auto *frameActions = new QHBoxLayout; frameActions->addWidget(refresh); frameActions->addWidget(enable_);
-    form->addRow(frameActions);
+    auto *refresh = new QPushButton; refresh->setObjectName("refreshFrames");
+    refresh->setIcon(QIcon(":/res/reload.png")); refresh->setIconSize(QSize(32, 32));
+    refresh->setFixedSize(44, 44); refresh->setToolTip("Refresh frames");
+    refresh->setAccessibleName("Refresh frames");
+    enable_ = new QPushButton; enable_->setObjectName("enableTf");
+    enable_->setCheckable(true); enable_->setFixedSize(44, 44);
+    enable_->setIconSize(QSize(32, 32));
+    enable_->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+    enable_->setToolTip("Enable static TF"); enable_->setAccessibleName("Enable static TF");
+    framesLayout->addWidget(refresh, 0, Qt::AlignTop);
+    framesLayout->addLayout(form, 1);
+    framesLayout->addWidget(enable_, 0, Qt::AlignTop);
     editor->addWidget(frames);
     auto *pose = new QGroupBox("Pose");
     auto *poseLayout = new QVBoxLayout(pose);
@@ -174,9 +238,15 @@ StaticTfPanel::StaticTfPanel(rclcpp::Node::SharedPtr node, tf2_ros::Buffer &buff
     auto *camera = new QHBoxLayout; auto *orbit = new QPushButton("Auto orbit"); orbit->setObjectName("autoOrbit"); auto *reset = new QPushButton("Reset view"); reset->setObjectName("resetView"); camera->addWidget(orbit); camera->addWidget(reset); previewColumn->addLayout(camera);
     auto *output = new QGroupBox("URDF preview"); auto *outputLayout = new QVBoxLayout(output); auto *jointRow = new QHBoxLayout;
     jointRow->addWidget(new QLabel("Joint name")); jointName_ = new QLineEdit; jointName_->setObjectName("jointName"); jointRow->addWidget(jointName_);
-    includeLink_ = new QCheckBox("Include child link"); includeLink_->setObjectName("includeChildLink"); includeLink_->setChecked(true); jointRow->addWidget(includeLink_); outputLayout->addLayout(jointRow);
-    urdfPreview_ = new QPlainTextEdit; urdfPreview_->setObjectName("urdfPreview"); urdfPreview_->setReadOnly(true); urdfPreview_->setMinimumHeight(145); outputLayout->addWidget(urdfPreview_);
-    auto *copy = new QPushButton("Copy URDF"); copy->setObjectName("copyUrdf"); outputLayout->addWidget(copy, 0, Qt::AlignRight); previewColumn->addWidget(output, 1);
+    outputLayout->addLayout(jointRow);
+    includeParentLink_ = new LinkToggle("Parent link"); includeParentLink_->setObjectName("includeParentLink");
+    includeLink_ = new LinkToggle("Child link"); includeLink_->setObjectName("includeChildLink");
+    urdfPreview_ = new UrdfPreview; urdfPreview_->setObjectName("urdfPreview"); urdfPreview_->setReadOnly(true); urdfPreview_->setMinimumHeight(145); outputLayout->addWidget(urdfPreview_);
+    auto *copy = new QPushButton("Copy URDF"); copy->setObjectName("copyUrdf");
+    auto *linkActions = new QHBoxLayout;
+    linkActions->addWidget(includeParentLink_); linkActions->addWidget(includeLink_);
+    linkActions->addStretch(); linkActions->addWidget(copy);
+    outputLayout->addLayout(linkActions); previewColumn->addWidget(output, 1);
     top->addLayout(previewColumn, 1);
     layout->addLayout(top, 1);
     auto *bottom = new QHBoxLayout;
@@ -197,9 +267,11 @@ StaticTfPanel::StaticTfPanel(rclcpp::Node::SharedPtr node, tf2_ros::Buffer &buff
     connect(rpyUnit_, &QPushButton::clicked, this, [this] { rpyUnitIndex_ = (rpyUnitIndex_ + 1) % 2; updateUnits(); });
     connect(orbit, &QPushButton::clicked, preview_, &TfPreview::resumeOrbit);
     connect(reset, &QPushButton::clicked, preview_, &TfPreview::resetView);
-    connect(copy, &QPushButton::clicked, this, [this] { QApplication::clipboard()->setText(urdfPreview_->toPlainText()); });
+    connect(copy, &QPushButton::clicked, this, [this] { QApplication::clipboard()->setText(compactUrdfOrigin(urdfPreview_->toPlainText())); });
     connect(jointName_, &QLineEdit::textEdited, this, [this] { jointEdited_ = true; });
     connect(jointName_, &QLineEdit::textChanged, this, [this] { updateOutput(); });
+    connect(includeParentLink_, &QCheckBox::toggled, this, [this] { updateOutput(); });
+    connect(includeParentLink_, &QCheckBox::clicked, this, [this] { includeParentLinkEdited_ = true; });
     connect(includeLink_, &QCheckBox::toggled, this, [this] { updateOutput(); });
     connect(includeLink_, &QCheckBox::clicked, this, [this] { includeLinkEdited_ = true; });
     auto frameChanged = [this] {
@@ -207,14 +279,18 @@ StaticTfPanel::StaticTfPanel(rclcpp::Node::SharedPtr node, tf2_ros::Buffer &buff
         if (!jointEdited_) jointName_->setText(parentFrame_->currentText() + "_to_" + childFrame_->currentText() + "_joint");
         updateOutput();
     };
-    connect(parentFrame_, &QComboBox::editTextChanged, this, frameChanged);
+    connect(parentFrame_, &QComboBox::editTextChanged, this, [this, frameChanged] {
+        if (!loading_) { includeParentLinkEdited_ = false; auto frames = frameParents(); includeParentLink_->setChecked(frames.count(parentFrame_->currentText()) == 0); }
+        frameChanged();
+    });
     connect(childFrame_, &QComboBox::editTextChanged, this, [this, frameChanged] {
         if (!loading_) { includeLinkEdited_ = false; auto frames = frameParents(); includeLink_->setChecked(frames.count(childFrame_->currentText()) == 0); }
         frameChanged();
     });
-    connect(enable_, &QCheckBox::toggled, this, &StaticTfPanel::setEnabledPublishing);
+    connect(enable_, &QPushButton::toggled, this, &StaticTfPanel::setEnabledPublishing);
     makePanelTextCopyable(this);
     loadSettings(); refreshFrames();
+    includeParentLink_->setChecked(frameParents().count(parentFrame_->currentText()) == 0);
     includeLink_->setChecked(frameParents().count(childFrame_->currentText()) == 0);
     updateUnits(); updateOutput();
 }
@@ -261,6 +337,7 @@ void StaticTfPanel::refreshFrames()
         for (const auto &entry : frames) combo->addItem(entry.first);
         combo->setEditText(selected);
     }
+    if (!includeParentLinkEdited_) includeParentLink_->setChecked(frames.count(parentFrame_->currentText()) == 0);
     if (!includeLinkEdited_) includeLink_->setChecked(frames.count(childFrame_->currentText()) == 0);
     updateOutput();
 }
@@ -291,6 +368,8 @@ void StaticTfPanel::setEnabledPublishing(bool enabled)
     if (enabled) {
         QString error = validateFrames();
         if (!error.isEmpty()) { QSignalBlocker block(enable_); enable_->setChecked(false); status_->setText(error); return; }
+        enable_->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+        enable_->setToolTip("Disable static TF"); enable_->setAccessibleName("Disable static TF");
         broadcaster_ = std::make_unique<tf2_ros::StaticTransformBroadcaster>(node_);
         static_cast<FrameComboBox *>(parentFrame_)->setFrameLocked(true);
         static_cast<FrameComboBox *>(childFrame_)->setFrameLocked(true);
@@ -298,6 +377,8 @@ void StaticTfPanel::setEnabledPublishing(bool enabled)
         publishTransform();
     } else {
         broadcaster_.reset();
+        enable_->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+        enable_->setToolTip("Enable static TF"); enable_->setAccessibleName("Enable static TF");
         static_cast<FrameComboBox *>(parentFrame_)->setFrameLocked(false);
         static_cast<FrameComboBox *>(childFrame_)->setFrameLocked(false);
         status_->setText("Disabled. Published static TFs may remain in other nodes' caches.");
@@ -325,8 +406,9 @@ void StaticTfPanel::updateOutput()
 {
     QString parent = parentFrame_->currentText().trimmed(), child = childFrame_->currentText().trimmed();
     QString xml;
-    if (includeLink_->isChecked()) xml += QString("<link name=\"%1\"/>\n").arg(child.toHtmlEscaped());
-    xml += QString("<joint name=\"%1\" type=\"fixed\">\n  <parent link=\"%2\"/>\n  <child link=\"%3\"/>\n  <origin xyz=\"%4 %5 %6\" rpy=\"%7 %8 %9\"/>\n</joint>")
+    if (includeParentLink_->isChecked() && !parent.isEmpty()) xml += QString("<link name=\"%1\"/>\n").arg(parent.toHtmlEscaped());
+    if (includeLink_->isChecked() && !child.isEmpty()) xml += QString("<link name=\"%1\"/>\n").arg(child.toHtmlEscaped());
+    xml += QString("<joint name=\"%1\" type=\"fixed\">\n  <parent link=\"%2\"/>\n  <child link=\"%3\"/>\n  <origin xyz=\"%4\n               %5\n               %6\"\n          rpy=\"%7\n               %8\n               %9\"/>\n</joint>")
         .arg(jointName_->text().toHtmlEscaped(), parent.toHtmlEscaped(), child.toHtmlEscaped(), urdfNumber(values_[0]), urdfNumber(values_[1]), urdfNumber(values_[2]), urdfNumber(values_[3]), urdfNumber(values_[4]), urdfNumber(values_[5]));
     urdfPreview_->setPlainText(xml);
     tf2::Quaternion q; q.setRPY(values_[3],values_[4],values_[5]);

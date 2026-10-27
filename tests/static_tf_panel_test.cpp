@@ -37,6 +37,7 @@ private slots:
     void invalidInputsAndSavedSettings();
     void heldButtonsRepeatAndStop();
     void refreshRespectsLinkChoice();
+    void linkDeclarationToggles();
     void mixedRpyMatchesUrdf();
     void previewRespondsToCameraControls();
 };
@@ -54,7 +55,7 @@ void StaticTfPanelTest::urdfPreviewUsesMetersAndRadians()
     parent->setEditText("base_link");
     child->setEditText("camera_link");
     x->setValue(0.25);
-    QVERIFY(preview->toPlainText().contains("xyz=\"0.2500 0.0000 0.0000\""));
+    QVERIFY(preview->toPlainText().contains("xyz=\"0.2500\n               0.0000\n               0.0000\""));
     QVERIFY(preview->toPlainText().contains("parent link=\"base_link\""));
     QVERIFY(preview->toPlainText().contains("child link=\"camera_link\""));
 }
@@ -70,7 +71,7 @@ void StaticTfPanelTest::unitsAndCopyPreservePose()
     auto yaw = panel.findChild<QDoubleSpinBox *>("axisYaw");
     x->setValue(0.5);
     yaw->setValue(1.5);
-    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000 0.0000 1.5000\""));
+    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000\n               0.0000\n               1.5000\""));
     const QString before = panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText();
     panel.findChild<QPushButton *>("xyzUnit")->click();
     QCOMPARE(x->value(), 50.0);
@@ -78,10 +79,14 @@ void StaticTfPanelTest::unitsAndCopyPreservePose()
     QVERIFY(std::abs(yaw->value() - 85.9437) < 1e-8);
     QCOMPARE(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText(), before);
     yaw->setValue(1.0);
-    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000 0.0000 0.0175\""));
+    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000\n               0.0000\n               0.0175\""));
     yaw->setValue(85.9437);
     panel.findChild<QPushButton *>("copyUrdf")->click();
-    QCOMPARE(QApplication::clipboard()->text(), panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText());
+    const QString copied = QApplication::clipboard()->text();
+    QVERIFY(copied.contains("<origin xyz=\"0.5000 0.0000 0.0000\" rpy=\"0.0000 0.0000 1.5000\"/>"));
+    auto *preview = panel.findChild<QPlainTextEdit *>("urdfPreview");
+    preview->selectAll(); preview->copy();
+    QCOMPARE(QApplication::clipboard()->text(), copied);
     panel.findChild<QRadioButton *>("step_0.1")->setChecked(true);
     panel.findChild<QPushButton *>("increaseX")->click();
     QVERIFY(std::abs(x->value() - 50.1) < 1e-8);
@@ -121,7 +126,7 @@ void StaticTfPanelTest::validateAndPublishStaticTf()
     StaticTfPanel panel(node, buffer);
     auto *parent = panel.findChild<QComboBox *>("parentFrame");
     auto *child = panel.findChild<QComboBox *>("childFrame");
-    auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+    auto *enabled = panel.findChild<QPushButton *>("enableTf");
     parent->setEditText(""); child->setEditText("new_frame"); enabled->setChecked(true);
     QVERIFY(!enabled->isChecked());
     parent->setEditText("base"); child->setEditText("sensor"); enabled->setChecked(true);
@@ -213,18 +218,28 @@ void StaticTfPanelTest::newParentCanPublish()
     StaticTfPanel panel(node, buffer);
     auto *parent = panel.findChild<QComboBox *>("parentFrame");
     auto *child = panel.findChild<QComboBox *>("childFrame");
-    auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+    auto *enabled = panel.findChild<QPushButton *>("enableTf");
     geometry_msgs::msg::TransformStamped received;
     auto sub = observer->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", rclcpp::QoS(10).transient_local().reliable(),
         [&](const tf2_msgs::msg::TFMessage &msg) { for (const auto &tf : msg.transforms) received = tf; });
+    QVERIFY(enabled->isCheckable());
+    QVERIFY(enabled->text().isEmpty());
+    QCOMPARE(enabled->width(), enabled->height());
+    QVERIFY(!enabled->icon().isNull());
+    QCOMPARE(enabled->accessibleName(), QString("Enable static TF"));
+    const auto playIcon = enabled->icon().pixmap(32, 32).toImage();
     parent->setEditText("new_root"); child->setEditText("new_child");
     enabled->setChecked(true);
+    QCOMPARE(enabled->accessibleName(), QString("Disable static TF"));
+    QVERIFY(enabled->icon().pixmap(32, 32).toImage() != playIcon);
     QVERIFY(enabled->isChecked());
     QElapsedTimer timer; timer.start();
     while (received.child_frame_id != "new_child" && timer.elapsed() < 5000) { rclcpp::spin_some(observer); QTest::qWait(10); }
     QCOMPARE(QString::fromStdString(received.header.frame_id), QString("new_root"));
     QCOMPARE(QString::fromStdString(received.child_frame_id), QString("new_child"));
     enabled->setChecked(false);
+    QCOMPARE(enabled->accessibleName(), QString("Enable static TF"));
+    QCOMPARE(enabled->icon().pixmap(32, 32).toImage(), playIcon);
     geometry_msgs::msg::TransformStamped existing;
     existing.header.stamp = node->now(); existing.header.frame_id = "existing_root"; existing.child_frame_id = "leaf";
     existing.transform.rotation.w = 1.0;
@@ -247,7 +262,7 @@ void StaticTfPanelTest::clearResetsAndPublishesPose()
     StaticTfPanel panel(node, buffer);
     auto *parent = panel.findChild<QComboBox *>("parentFrame");
     auto *child = panel.findChild<QComboBox *>("childFrame");
-    auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+    auto *enabled = panel.findChild<QPushButton *>("enableTf");
     parent->setEditText("new_root"); child->setEditText("new_child");
     const char *axes[] = {"axisX", "axisY", "axisZ", "axisRoll", "axisPitch", "axisYaw"};
     for (const auto *name : axes) panel.findChild<QDoubleSpinBox *>(name)->setValue(1.0);
@@ -303,7 +318,7 @@ void StaticTfPanelTest::invalidInputsAndSavedSettings()
         QCOMPARE(x->value(), 2000000000000.0);
         auto *input = x->findChild<QLineEdit *>();
         input->setText("-");
-        auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+        auto *enabled = panel.findChild<QPushButton *>("enableTf");
         enabled->setChecked(true);
         QVERIFY(!enabled->isChecked());
         input->setText("2000000000000");
@@ -320,7 +335,7 @@ void StaticTfPanelTest::invalidInputsAndSavedSettings()
     }
     {
         StaticTfPanel restored(node, buffer);
-        QVERIFY(!restored.findChild<QCheckBox *>("enableTf")->isChecked());
+        QVERIFY(!restored.findChild<QPushButton *>("enableTf")->isChecked());
         QVERIFY(!restored.findChild<QCheckBox *>("includeChildLink")->isChecked());
         QCOMPARE(restored.findChild<QComboBox *>("parentFrame")->currentText(), QString("base"));
         QCOMPARE(restored.findChild<QComboBox *>("childFrame")->currentText(), QString("other"));
@@ -352,6 +367,11 @@ void StaticTfPanelTest::refreshRespectsLinkChoice()
     tf2_ros::Buffer buffer(node->get_clock());
     StaticTfPanel panel(node, buffer);
     panel.findChild<QComboBox *>("childFrame")->setEditText("late_root");
+    auto *refresh = panel.findChild<QPushButton *>("refreshFrames");
+    QVERIFY(refresh->text().isEmpty());
+    QVERIFY(!refresh->icon().isNull());
+    QCOMPARE(refresh->size().width(), refresh->size().height());
+    QCOMPARE(refresh->accessibleName(), QString("Refresh frames"));
     auto *include = panel.findChild<QCheckBox *>("includeChildLink");
     QVERIFY(include->isChecked());
     geometry_msgs::msg::TransformStamped fixture;
@@ -363,6 +383,43 @@ void StaticTfPanelTest::refreshRespectsLinkChoice()
     QVERIFY(include->isChecked());
     panel.findChild<QPushButton *>("refreshFrames")->click();
     QVERIFY(include->isChecked());
+}
+
+void StaticTfPanelTest::linkDeclarationToggles()
+{
+    auto node = std::make_shared<rclcpp::Node>("link_toggles_test");
+    tf2_ros::Buffer buffer(node->get_clock());
+    geometry_msgs::msg::TransformStamped fixture;
+    fixture.header.stamp = node->now(); fixture.header.frame_id = "world"; fixture.child_frame_id = "base"; fixture.transform.rotation.w = 1;
+    QVERIFY(buffer.setTransform(fixture, "fixture", true));
+    StaticTfPanel panel(node, buffer);
+    auto *parent = panel.findChild<QComboBox *>("parentFrame");
+    auto *child = panel.findChild<QComboBox *>("childFrame");
+    auto *parentLink = panel.findChild<QCheckBox *>("includeParentLink");
+    auto *childLink = panel.findChild<QCheckBox *>("includeChildLink");
+    QVERIFY(parentLink && childLink);
+    QCOMPARE(parentLink->text(), QString("Parent link"));
+    QCOMPARE(childLink->text(), QString("Child link"));
+    QVERIFY(!panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("<link name=\"\"/>"));
+    parent->setEditText("world"); child->setEditText("sensor");
+    QVERIFY(!parentLink->isChecked());
+    QVERIFY(childLink->isChecked());
+    auto *preview = panel.findChild<QPlainTextEdit *>("urdfPreview");
+    QVERIFY(!preview->toPlainText().contains("<link name=\"world\"/>"));
+    QVERIFY(preview->toPlainText().contains("<link name=\"sensor\"/>"));
+    parentLink->click(); childLink->click();
+    QVERIFY(preview->toPlainText().contains("<link name=\"world\"/>"));
+    QVERIFY(!preview->toPlainText().contains("<link name=\"sensor\"/>"));
+    panel.findChild<QPushButton *>("copyUrdf")->click();
+    QVERIFY(QApplication::clipboard()->text().contains("<link name=\"world\"/>"));
+    QVERIFY(!QApplication::clipboard()->text().contains("<link name=\"sensor\"/>"));
+    panel.findChild<QPushButton *>("refreshFrames")->click();
+    QVERIFY(parentLink->isChecked());
+    QVERIFY(!childLink->isChecked());
+    parent->setEditText("new_root");
+    QVERIFY(parentLink->isChecked());
+    child->setEditText("base");
+    QVERIFY(!childLink->isChecked());
 }
 
 void StaticTfPanelTest::mixedRpyMatchesUrdf()
@@ -382,7 +439,8 @@ void StaticTfPanelTest::mixedRpyMatchesUrdf()
     panel.findChild<QDoubleSpinBox *>("axisRoll")->setValue(0.5);
     panel.findChild<QDoubleSpinBox *>("axisPitch")->setValue(-0.25);
     panel.findChild<QDoubleSpinBox *>("axisYaw")->setValue(1.2);
-    QString xml = "<robot name=\"test\"><link name=\"base\"/>" + panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText() + "</robot>";
+    panel.findChild<QPushButton *>("copyUrdf")->click();
+    QString xml = "<robot name=\"test\"><link name=\"base\"/>" + QApplication::clipboard()->text() + "</robot>";
     urdf::Model model;
     QVERIFY(model.initString(xml.toStdString()));
     auto joint = model.getJoint("base_to_camera_joint");
@@ -390,7 +448,7 @@ void StaticTfPanelTest::mixedRpyMatchesUrdf()
     geometry_msgs::msg::TransformStamped received;
     auto sub = observer->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", rclcpp::QoS(10).transient_local().reliable(),
         [&](const tf2_msgs::msg::TFMessage &msg) { for (const auto &tf : msg.transforms) if (tf.child_frame_id == "camera") received = tf; });
-    panel.findChild<QCheckBox *>("enableTf")->setChecked(true);
+    panel.findChild<QPushButton *>("enableTf")->setChecked(true);
     QElapsedTimer timer; timer.start();
     while (received.child_frame_id.empty() && timer.elapsed() < 5000) { rclcpp::spin_some(observer); QTest::qWait(10); }
     QVERIFY(!received.child_frame_id.empty());

@@ -79,7 +79,7 @@ Enable 開啟時立即發布 static TF；後續每次有效數值變更都立即
 - XYZ 不設 ±1 m 或 ±10 m 的產品限制；可表示範圍仍受有限浮點數及元件能力限制。空白、編輯中的不完整輸入、非有限值不可發布為 TF。
 - 面板、發布資料、URDF 預覽及 3D 預覽共享同一份姿態意義。XYZ 是 parent 座標系中的 child 原點位置；RPY 使用 URDF 固定軸 X／Y／Z 的 roll／pitch／yaw 慣例。轉換成 ROS 四元數時保持此定義。
 - URDF 預覽唯讀並隨有效設定更新，不依賴 Enable。輸出 fixed joint、parent、child 與 origin；數字一律使用 m／rad，採 XML 可解析的數字格式並輸出小數點後 4 位；發布的 TF 保留內部精度。複製按鈕把目前預覽片段放入剪貼簿。
-- Joint 名稱可編輯，預設為 `<parent>_to_<child>_joint`。提供「包含 child link 宣告」選項；新 child 預設勾選，選擇既有分支根 frame 時預設不勾選。是否包含宣告是使用者可覆寫的選擇。
+- Joint 名稱可編輯，預設為 `<parent>_to_<child>_joint`。提供「Parent link」及「Child link」切換按鈕，分別控制各自的 link 宣告；新 frame 預設勾選，既有 frame 預設不勾選。是否包含宣告是使用者可覆寫的選擇。
 - 預覽輸出可放入既有 URDF 或 xacro 的 robot 內容，不產生整份 robot 文件。輸出須正確處理 XML 屬性字元，避免名稱造成無效 XML。
 - 使用 QSettings 保存 parent／child、XYZ／RPY、顯示單位與步長；每次啟動應用都強制 Enable 關閉。恢復的 frame 名稱仍須依目前 TF 環境驗證。
 - 面板右上角提供輕量 3D 預覽，只顯示兩組座標軸及 frame 名稱，不載入機器人模型。X 紅、Y 綠、Z 藍，不顯示軸端文字，並在 parent 的 XY 平面顯示格線；兩組軸使用一致的尺度，姿態來自目前編輯值，停用時仍顯示。

@@ -43,7 +43,8 @@ private:
     QComboBox *parentFrame_, *childFrame_;
     QLineEdit *jointName_;
     QPlainTextEdit *urdfPreview_;
-    QCheckBox *enable_, *includeLink_;
+    QCheckBox *includeLink_, *includeParentLink_;
+    QPushButton *enable_;
     QLabel *status_;
     QPushButton *xyzUnit_, *rpyUnit_;
     TfPreview *preview_;
@@ -51,7 +52,7 @@ private:
     std::array<double, 6> values_{};
     int xyzUnitIndex_ = 0, rpyUnitIndex_ = 0;
     double step_ = 0.01;
-    bool updating_ = false, loading_ = false, jointEdited_ = false, includeLinkEdited_ = false;
+    bool updating_ = false, loading_ = false, jointEdited_ = false, includeLinkEdited_ = false, includeParentLinkEdited_ = false;
     std::map<QString, QString> published_;
 };
 #endif

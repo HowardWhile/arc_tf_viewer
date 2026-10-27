@@ -75,11 +75,28 @@ void TfPreview::paintEvent(QPaintEvent *)
     QVector3D forward(static_cast<float>(std::cos(pitch_) * std::cos(yaw_)), static_cast<float>(std::cos(pitch_) * std::sin(yaw_)), static_cast<float>(std::sin(pitch_)));
     QVector3D right(-forward.y(), forward.x(), 0);
     QVector3D up = QVector3D::crossProduct(forward, right).normalized();
-    const double scale = std::min(width(), height()) * 0.75 / distance_;
+    // The camera sits at center + forward * distance and looks toward center.
+    // Clip segments at a near plane before dividing by depth.
+    const double focalLength = std::min(width(), height()) * 0.75;
+    const double nearPlane = std::max(0.01, distance_ * 0.01);
+    auto depth = [&](const QVector3D &v) {
+        return distance_ - QVector3D::dotProduct(v - center_, forward);
+    };
     auto project = [&](const QVector3D &v) {
-        QVector3D d = v - center_;
+        const QVector3D d = v - center_;
+        const double scale = focalLength / std::max(depth(v), nearPlane);
         return QPointF(width() * 0.5 + QVector3D::dotProduct(d, right) * scale,
                        height() * 0.5 - QVector3D::dotProduct(d, up) * scale);
+    };
+    auto drawLine3D = [&](QVector3D a, QVector3D b) {
+        const double aDepth = depth(a), bDepth = depth(b);
+        if (aDepth < nearPlane && bDepth < nearPlane) return;
+        if (aDepth < nearPlane) {
+            a += (b - a) * static_cast<float>((nearPlane - aDepth) / (bDepth - aDepth));
+        } else if (bDepth < nearPlane) {
+            b += (a - b) * static_cast<float>((nearPlane - bDepth) / (aDepth - bDepth));
+        }
+        p.drawLine(project(a), project(b));
     };
     // Draw the parent frame's XY plane before the axes so the grid stays in the background.
     const double span = std::max({1.5, std::abs(static_cast<double>(position_.x())),
@@ -90,20 +107,23 @@ void TfPreview::paintEvent(QPaintEvent *)
     p.setPen(QPen(QColor(76, 88, 102), 1.0));
     for (int i = -halfLines; i <= halfLines; ++i) {
         const float offset = static_cast<float>(i * spacing);
-        p.drawLine(project(QVector3D(-extent, offset, 0)), project(QVector3D(extent, offset, 0)));
-        p.drawLine(project(QVector3D(offset, -extent, 0)), project(QVector3D(offset, extent, 0)));
+        drawLine3D(QVector3D(-extent, offset, 0), QVector3D(extent, offset, 0));
+        drawLine3D(QVector3D(offset, -extent, 0), QVector3D(offset, extent, 0));
     }
     auto drawFrame = [&](const QVector3D &origin, const QQuaternion &rotation, const QString &name) {
         const QVector3D axes[] = {QVector3D(1,0,0), QVector3D(0,1,0), QVector3D(0,0,1)};
         const QColor colors[] = {QColor(255,90,90), QColor(105,225,130), QColor(105,165,255)};
         const double length = std::max(0.4, static_cast<double>(position_.length()) * 0.16);
         for (int i=0;i<3;++i) {
-            QPointF start = project(origin), end = project(origin + rotation.rotatedVector(axes[i]) * static_cast<float>(length));
-            p.setPen(QPen(colors[i], 2.5)); p.drawLine(start, end);
+            p.setPen(QPen(colors[i], 2.5));
+            drawLine3D(origin, origin + rotation.rotatedVector(axes[i]) * static_cast<float>(length));
         }
-        p.setPen(QColor(235,240,245)); p.drawText(project(origin) + QPointF(5,16), name.isEmpty() ? QStringLiteral("frame") : name);
+        if (depth(origin) >= nearPlane) {
+            p.setPen(QColor(235,240,245));
+            p.drawText(project(origin) + QPointF(5,16), name.isEmpty() ? QStringLiteral("frame") : name);
+        }
     };
-    p.setPen(QPen(QColor(150,160,174), 1, Qt::DashLine)); p.drawLine(project(QVector3D()), project(position_));
+    p.setPen(QPen(QColor(150,160,174), 1, Qt::DashLine)); drawLine3D(QVector3D(), position_);
     drawFrame(QVector3D(), QQuaternion(), parentName_);
     drawFrame(position_, orientation_, childName_);
 }
