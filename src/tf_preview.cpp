@@ -7,7 +7,7 @@
 
 TfPreview::TfPreview(QWidget *parent) : QWidget(parent)
 {
-    setMinimumSize(300, 230);
+    setMinimumSize(240, 160);
     setAccessibleName("3D frame preview");
     setToolTip("Drag to rotate; use the wheel to zoom.");
     connect(&timer_, &QTimer::timeout, this, &TfPreview::tick);
@@ -26,7 +26,9 @@ void TfPreview::setPose(const QVector3D &position, const QQuaternion &orientatio
 }
 void TfPreview::setFrameNames(const QString &parent, const QString &child)
 {
-    parentName_ = parent; childName_ = child; update();
+    parentName_ = parent; childName_ = child;
+    setProperty("copyableFrameNames", QStringList{parent, child});
+    update();
 }
 void TfPreview::resumeOrbit() { orbit_ = true; }
 void TfPreview::resetView()
@@ -79,14 +81,25 @@ void TfPreview::paintEvent(QPaintEvent *)
         return QPointF(width() * 0.5 + QVector3D::dotProduct(d, right) * scale,
                        height() * 0.5 - QVector3D::dotProduct(d, up) * scale);
     };
+    // Draw the parent frame's XY plane before the axes so the grid stays in the background.
+    const double span = std::max({1.5, std::abs(static_cast<double>(position_.x())),
+                                  std::abs(static_cast<double>(position_.y()))}) * 1.2;
+    const double spacing = std::pow(10.0, std::floor(std::log10(span))) / 2.0;
+    const int halfLines = static_cast<int>(std::ceil(span / spacing));
+    const float extent = static_cast<float>(halfLines * spacing);
+    p.setPen(QPen(QColor(76, 88, 102), 1.0));
+    for (int i = -halfLines; i <= halfLines; ++i) {
+        const float offset = static_cast<float>(i * spacing);
+        p.drawLine(project(QVector3D(-extent, offset, 0)), project(QVector3D(extent, offset, 0)));
+        p.drawLine(project(QVector3D(offset, -extent, 0)), project(QVector3D(offset, extent, 0)));
+    }
     auto drawFrame = [&](const QVector3D &origin, const QQuaternion &rotation, const QString &name) {
         const QVector3D axes[] = {QVector3D(1,0,0), QVector3D(0,1,0), QVector3D(0,0,1)};
         const QColor colors[] = {QColor(255,90,90), QColor(105,225,130), QColor(105,165,255)};
-        const char *labels[] = {"X", "Y", "Z"};
         const double length = std::max(0.4, static_cast<double>(position_.length()) * 0.16);
         for (int i=0;i<3;++i) {
             QPointF start = project(origin), end = project(origin + rotation.rotatedVector(axes[i]) * static_cast<float>(length));
-            p.setPen(QPen(colors[i], 2.5)); p.drawLine(start, end); p.drawText(end + QPointF(4,-4), labels[i]);
+            p.setPen(QPen(colors[i], 2.5)); p.drawLine(start, end);
         }
         p.setPen(QColor(235,240,245)); p.drawText(project(origin) + QPointF(5,16), name.isEmpty() ? QStringLiteral("frame") : name);
     };

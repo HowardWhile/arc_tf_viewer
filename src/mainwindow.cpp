@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "static_tf_panel.h"
 #include <QPushButton>
+#include <QGuiApplication>
+#include <QScreen>
+#include <algorithm>
 #include "./ui_mainwindow.h"
 
 #include <yaml-cpp/yaml.h>
@@ -20,6 +23,35 @@
 #define ROS_PRINT(...) RCLCPP_INFO(this->node_->get_logger(), __VA_ARGS__)
 
 #define RAD2DEG 180.0 / M_PI
+
+namespace {
+void positionBesideMainWindow(QWidget *panel, const QWidget *main)
+{
+    const QRect mainRect = main->frameGeometry();
+    const QSize panelSize = panel->size().expandedTo(panel->minimumSizeHint());
+    const auto screens = QGuiApplication::screens();
+    for (const int x : {mainRect.right() + 1, mainRect.left() - panelSize.width()}) {
+        for (const auto *screen : screens) {
+            const QRect available = screen->availableGeometry();
+            const int maxY = std::max(available.top(), available.bottom() - panelSize.height() + 1);
+            const int y = std::clamp(mainRect.top(), available.top(), maxY);
+            if (available.contains(QRect(QPoint(x, y), panelSize))) {
+                panel->move(x, y);
+                return;
+            }
+        }
+    }
+    auto *screen = QGuiApplication::screenAt(mainRect.center());
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    if (!screen) return;
+    const QRect available = screen->availableGeometry();
+    const int maxX = std::max(available.left(), available.right() - panelSize.width() + 1);
+    const int maxY = std::max(available.top(), available.bottom() - panelSize.height() + 1);
+    panel->move(std::clamp(mainRect.right() + 1, available.left(), maxX),
+                std::clamp(mainRect.top(), available.top(), maxY));
+}
+}
+
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -62,7 +94,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     static_tf_button->setObjectName("staticTfButton");
     ui->horizontalLayout->addWidget(static_tf_button);
     connect(static_tf_button, &QPushButton::clicked, this, [this] {
-        if (!static_tf_panel_) static_tf_panel_ = new StaticTfPanel(node_, *tf_buffer_, this);
+        if (!static_tf_panel_) {
+            static_tf_panel_ = new StaticTfPanel(node_, *tf_buffer_);
+            positionBesideMainWindow(static_tf_panel_, this);
+        }
         static_tf_panel_->refreshFrames();
         static_tf_panel_->show();
         static_tf_panel_->raise();
@@ -82,6 +117,12 @@ MainWindow::~MainWindow()
     rclcpp::shutdown();
 
     delete ui;
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (static_tf_panel_) static_tf_panel_->hide();
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::initSpin(void)

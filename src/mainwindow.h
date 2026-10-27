@@ -33,6 +33,9 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private slots:
     void on_btn_refresh_clicked();
 

@@ -4,6 +4,9 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QClipboard>
+#include <QContextMenuEvent>
+#include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QXmlStreamReader>
@@ -26,7 +29,11 @@ private slots:
     void init() { QDir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/arc_tf_viewer").removeRecursively(); }
     void urdfPreviewUsesMetersAndRadians();
     void unitsAndCopyPreservePose();
+    void fourDecimalDisplayPreservesPose();
     void validateAndPublishStaticTf();
+    void panelTextCanBeCopied();
+    void newParentCanPublish();
+    void clearResetsAndPublishesPose();
     void invalidInputsAndSavedSettings();
     void heldButtonsRepeatAndStop();
     void refreshRespectsLinkChoice();
@@ -47,7 +54,7 @@ void StaticTfPanelTest::urdfPreviewUsesMetersAndRadians()
     parent->setEditText("base_link");
     child->setEditText("camera_link");
     x->setValue(0.25);
-    QVERIFY(preview->toPlainText().contains("xyz=\"0.25 0 0\""));
+    QVERIFY(preview->toPlainText().contains("xyz=\"0.2500 0.0000 0.0000\""));
     QVERIFY(preview->toPlainText().contains("parent link=\"base_link\""));
     QVERIFY(preview->toPlainText().contains("child link=\"camera_link\""));
 }
@@ -62,18 +69,41 @@ void StaticTfPanelTest::unitsAndCopyPreservePose()
     auto x = panel.findChild<QDoubleSpinBox *>("axisX");
     auto yaw = panel.findChild<QDoubleSpinBox *>("axisYaw");
     x->setValue(0.5);
-    yaw->setValue(1.570796326795);
+    yaw->setValue(1.5);
+    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000 0.0000 1.5000\""));
     const QString before = panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText();
     panel.findChild<QPushButton *>("xyzUnit")->click();
     QCOMPARE(x->value(), 50.0);
     panel.findChild<QPushButton *>("rpyUnit")->click();
-    QVERIFY(std::abs(yaw->value() - 90.0) < 1e-8);
+    QVERIFY(std::abs(yaw->value() - 85.9437) < 1e-8);
     QCOMPARE(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText(), before);
+    yaw->setValue(1.0);
+    QVERIFY(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText().contains("rpy=\"0.0000 0.0000 0.0175\""));
+    yaw->setValue(85.9437);
     panel.findChild<QPushButton *>("copyUrdf")->click();
-    QCOMPARE(QApplication::clipboard()->text(), before);
+    QCOMPARE(QApplication::clipboard()->text(), panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText());
     panel.findChild<QRadioButton *>("step_0.1")->setChecked(true);
     panel.findChild<QPushButton *>("increaseX")->click();
     QVERIFY(std::abs(x->value() - 50.1) < 1e-8);
+}
+
+void StaticTfPanelTest::fourDecimalDisplayPreservesPose()
+{
+    auto node = std::make_shared<rclcpp::Node>("precision_test");
+    tf2_ros::Buffer buffer(node->get_clock());
+    StaticTfPanel panel(node, buffer);
+    auto *x = panel.findChild<QDoubleSpinBox *>("axisX");
+    auto *unit = panel.findChild<QPushButton *>("xyzUnit");
+    QCOMPARE(x->decimals(), 4);
+    unit->click(); unit->click();
+    x->setValue(0.0001);
+    const QString before = panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText();
+    unit->click();
+    QCOMPARE(x->text(), QString("0.0000"));
+    QCOMPARE(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText(), before);
+    unit->click(); unit->click();
+    QCOMPARE(x->value(), 0.0001);
+    QCOMPARE(panel.findChild<QPlainTextEdit *>("urdfPreview")->toPlainText(), before);
 }
 
 void StaticTfPanelTest::validateAndPublishStaticTf()
@@ -92,7 +122,7 @@ void StaticTfPanelTest::validateAndPublishStaticTf()
     auto *parent = panel.findChild<QComboBox *>("parentFrame");
     auto *child = panel.findChild<QComboBox *>("childFrame");
     auto *enabled = panel.findChild<QCheckBox *>("enableTf");
-    parent->setEditText("missing"); child->setEditText("new_frame"); enabled->setChecked(true);
+    parent->setEditText(""); child->setEditText("new_frame"); enabled->setChecked(true);
     QVERIFY(!enabled->isChecked());
     parent->setEditText("base"); child->setEditText("sensor"); enabled->setChecked(true);
     QVERIFY(!enabled->isChecked());
@@ -100,7 +130,11 @@ void StaticTfPanelTest::validateAndPublishStaticTf()
     QVERIFY(!enabled->isChecked());
     child->setEditText("other_root"); enabled->setChecked(true);
     QVERIFY(enabled->isChecked());
-    QVERIFY(!parent->isEnabled() && !child->isEnabled());
+    QVERIFY(parent->lineEdit()->isReadOnly() && child->lineEdit()->isReadOnly());
+    parent->lineEdit()->selectAll(); parent->lineEdit()->copy();
+    QCOMPARE(QApplication::clipboard()->text(), QString("base"));
+    QTest::keyClick(parent, Qt::Key_Down);
+    QCOMPARE(parent->currentText(), QString("base"));
     enabled->setChecked(false);
     child->setEditText("new_frame");
     geometry_msgs::msg::TransformStamped received;
@@ -109,17 +143,17 @@ void StaticTfPanelTest::validateAndPublishStaticTf()
     enabled->setChecked(true);
     QVERIFY(enabled->isChecked());
     panel.findChild<QDoubleSpinBox *>("axisX")->setValue(20.0);
-    panel.findChild<QDoubleSpinBox *>("axisYaw")->setValue(1.570796326795);
+    panel.findChild<QDoubleSpinBox *>("axisYaw")->setValue(1.5708);
     QElapsedTimer timer; timer.start();
-    while ((received.child_frame_id.empty() || std::abs(received.transform.translation.x-20.0) > 1e-8 || std::abs(received.transform.rotation.z-0.7071067811865476) > 1e-9) && timer.elapsed() < 5000) {
+    while ((received.child_frame_id.empty() || std::abs(received.transform.translation.x-20.0) > 1e-8 || std::abs(received.transform.rotation.z-0.7071080798594735) > 1e-9) && timer.elapsed() < 5000) {
         rclcpp::spin_some(observer); QTest::qWait(10);
     }
     QCOMPARE(QString::fromStdString(received.header.frame_id), QString("base"));
     QVERIFY(std::abs(received.transform.translation.x - 20.0) < 1e-8);
-    QVERIFY(std::abs(received.transform.rotation.z - 0.7071067811865476) < 1e-9);
-    QVERIFY(std::abs(received.transform.rotation.w - 0.7071067811865476) < 1e-9);
+    QVERIFY(std::abs(received.transform.rotation.z - 0.7071080798594735) < 1e-9);
+    QVERIFY(std::abs(received.transform.rotation.w - 0.7071054825112363) < 1e-9);
     enabled->setChecked(false);
-    QVERIFY(parent->isEnabled() && child->isEnabled());
+    QVERIFY(!parent->lineEdit()->isReadOnly() && !child->lineEdit()->isReadOnly());
     panel.findChild<QDoubleSpinBox *>("axisX")->setValue(42.0);
     QElapsedTimer quiet; quiet.start();
     while (quiet.elapsed() < 300) { rclcpp::spin_some(observer); QTest::qWait(10); }
@@ -131,6 +165,118 @@ void StaticTfPanelTest::validateAndPublishStaticTf()
         rclcpp::spin_some(observer); QTest::qWait(10);
     }
     QVERIFY(std::abs(received.transform.translation.x - 42.0) < 1e-8);
+    (void)sub;
+}
+
+void StaticTfPanelTest::panelTextCanBeCopied()
+{
+    auto node = std::make_shared<rclcpp::Node>("copy_text_test");
+    tf2_ros::Buffer buffer(node->get_clock());
+    StaticTfPanel panel(node, buffer);
+    panel.show();
+    auto *status = panel.findChild<QLabel *>("status");
+    QVERIFY(status->textInteractionFlags() & Qt::TextSelectableByMouse);
+    status->setSelection(0, 8);
+    status->setFocus();
+    QTest::keyClick(status, Qt::Key_C, Qt::ControlModifier);
+    QCOMPARE(QApplication::clipboard()->text(), QString("Disabled"));
+    auto *button = panel.findChild<QPushButton *>("clearPose");
+    QVERIFY(button);
+    QContextMenuEvent context(QContextMenuEvent::Mouse, button->rect().center(), button->mapToGlobal(button->rect().center()));
+    QApplication::sendEvent(button, &context);
+    auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+    QVERIFY(menu);
+    QVERIFY(!menu->actions().isEmpty());
+    menu->actions().first()->trigger();
+    QCOMPARE(QApplication::clipboard()->text(), QString("Clear pose"));
+    menu->close();
+    auto *input = panel.findChild<QComboBox *>("parentFrame")->lineEdit();
+    input->setText("base_link"); input->selectAll(); input->copy();
+    QCOMPARE(QApplication::clipboard()->text(), QString("base_link"));
+    panel.findChild<QComboBox *>("childFrame")->setEditText("camera_link");
+    auto *preview = panel.findChild<QWidget *>("tfPreview");
+    QContextMenuEvent previewContext(QContextMenuEvent::Mouse, preview->rect().center(), preview->mapToGlobal(preview->rect().center()));
+    QApplication::sendEvent(preview, &previewContext);
+    menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+    QVERIFY(menu);
+    QCOMPARE(menu->actions().size(), 2);
+    menu->actions().last()->trigger();
+    QCOMPARE(QApplication::clipboard()->text(), QString("camera_link"));
+    menu->close();
+}
+
+void StaticTfPanelTest::newParentCanPublish()
+{
+    auto node = std::make_shared<rclcpp::Node>("new_parent_test");
+    auto observer = std::make_shared<rclcpp::Node>("new_parent_observer");
+    tf2_ros::Buffer buffer(node->get_clock());
+    StaticTfPanel panel(node, buffer);
+    auto *parent = panel.findChild<QComboBox *>("parentFrame");
+    auto *child = panel.findChild<QComboBox *>("childFrame");
+    auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+    geometry_msgs::msg::TransformStamped received;
+    auto sub = observer->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", rclcpp::QoS(10).transient_local().reliable(),
+        [&](const tf2_msgs::msg::TFMessage &msg) { for (const auto &tf : msg.transforms) received = tf; });
+    parent->setEditText("new_root"); child->setEditText("new_child");
+    enabled->setChecked(true);
+    QVERIFY(enabled->isChecked());
+    QElapsedTimer timer; timer.start();
+    while (received.child_frame_id != "new_child" && timer.elapsed() < 5000) { rclcpp::spin_some(observer); QTest::qWait(10); }
+    QCOMPARE(QString::fromStdString(received.header.frame_id), QString("new_root"));
+    QCOMPARE(QString::fromStdString(received.child_frame_id), QString("new_child"));
+    enabled->setChecked(false);
+    geometry_msgs::msg::TransformStamped existing;
+    existing.header.stamp = node->now(); existing.header.frame_id = "existing_root"; existing.child_frame_id = "leaf";
+    existing.transform.rotation.w = 1.0;
+    QVERIFY(buffer.setTransform(existing, "fixture", true));
+    parent->setEditText("another_new_root"); child->setEditText("existing_root");
+    enabled->setChecked(true);
+    QVERIFY(enabled->isChecked());
+    timer.restart();
+    while (received.child_frame_id != "existing_root" && timer.elapsed() < 5000) { rclcpp::spin_some(observer); QTest::qWait(10); }
+    QCOMPARE(QString::fromStdString(received.header.frame_id), QString("another_new_root"));
+    QCOMPARE(QString::fromStdString(received.child_frame_id), QString("existing_root"));
+    (void)sub;
+}
+
+void StaticTfPanelTest::clearResetsAndPublishesPose()
+{
+    auto node = std::make_shared<rclcpp::Node>("clear_pose_test");
+    auto observer = std::make_shared<rclcpp::Node>("clear_pose_observer");
+    tf2_ros::Buffer buffer(node->get_clock());
+    StaticTfPanel panel(node, buffer);
+    auto *parent = panel.findChild<QComboBox *>("parentFrame");
+    auto *child = panel.findChild<QComboBox *>("childFrame");
+    auto *enabled = panel.findChild<QCheckBox *>("enableTf");
+    parent->setEditText("new_root"); child->setEditText("new_child");
+    const char *axes[] = {"axisX", "axisY", "axisZ", "axisRoll", "axisPitch", "axisYaw"};
+    for (const auto *name : axes) panel.findChild<QDoubleSpinBox *>(name)->setValue(1.0);
+    panel.findChild<QPushButton *>("xyzUnit")->click();
+    panel.findChild<QRadioButton *>("step_0.1")->setChecked(true);
+    geometry_msgs::msg::TransformStamped received;
+    auto sub = observer->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", rclcpp::QoS(10).transient_local().reliable(),
+        [&](const tf2_msgs::msg::TFMessage &msg) { for (const auto &tf : msg.transforms) received = tf; });
+    enabled->setChecked(true);
+    QVERIFY(enabled->isChecked());
+    auto *clear = panel.findChild<QPushButton *>("clearPose");
+    QVERIFY(clear != nullptr);
+    panel.findChild<QDoubleSpinBox *>("axisX")->findChild<QLineEdit *>()->setText("-");
+    clear->click();
+    QVERIFY(panel.findChild<QDoubleSpinBox *>("axisX")->findChild<QLineEdit *>()->hasAcceptableInput());
+    for (const auto *name : axes) QCOMPARE(panel.findChild<QDoubleSpinBox *>(name)->value(), 0.0);
+    QCOMPARE(parent->currentText(), QString("new_root"));
+    QCOMPARE(child->currentText(), QString("new_child"));
+    QCOMPARE(panel.findChild<QPushButton *>("xyzUnit")->text(), QString("cm"));
+    QVERIFY(panel.findChild<QRadioButton *>("step_0.1")->isChecked());
+    QElapsedTimer timer; timer.start();
+    while ((received.child_frame_id.empty() || std::abs(received.transform.rotation.w - 1.0) > 1e-10) && timer.elapsed() < 5000) {
+        rclcpp::spin_some(observer); QTest::qWait(10);
+    }
+    QCOMPARE(QString::fromStdString(received.child_frame_id), QString("new_child"));
+    QCOMPARE(received.transform.translation.x, 0.0);
+    QCOMPARE(received.transform.translation.y, 0.0);
+    QCOMPARE(received.transform.translation.z, 0.0);
+    QCOMPARE(received.transform.rotation.w, 1.0);
     (void)sub;
 }
 
