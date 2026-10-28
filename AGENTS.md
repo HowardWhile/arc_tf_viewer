@@ -25,3 +25,18 @@ See `docs/agents/triage-labels.md`.
 
 Single-context layout: root `CONTEXT.md` and `docs/adr/`.
 See `docs/agents/domain.md`.
+
+
+## Git 提交禁止
+除非使用者明確同意，不得執行 git stage 更不能自動 git commit。
+
+# 關於精簡化
+執行精簡化可以移除的事項描述如下：
+```
+# agents 相關的物件
+AGENTS.md
+.scratch/*
+docs/*
+
+
+```

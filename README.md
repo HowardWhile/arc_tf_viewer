@@ -60,10 +60,3 @@ colcon build
 source install/setup.bash
 ros2 run arc_tf_viewer ui
 ```
-
-
-
-## Next
-
-I want to add a scope to display TF information similar to [ScottPlot](https://scottplot.net/)....
-
